@@ -15,7 +15,7 @@ Then execute the following commands:
 
 ```
 # Clone this repository to wizdb/
-git clone https://gitlab.com/vale_/wizdb
+git clone https://github.com/MajorPain1/wizdb
 cd wizdb
 
 # Copy the game's Root.wad file to wizdb/Root.wad
