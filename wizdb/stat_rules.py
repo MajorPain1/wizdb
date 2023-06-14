@@ -123,7 +123,7 @@ class StatRules:
                 if any(i in category for i in ("Damage", "Piercing", "Accuracy", "PowerPips", "Healing", "ReduceDamage", "StunResistance", "FishingLuck")) and not flat:
                     value *= 100
     
-                return StatStat(name, _bitpack_float(value))
+                return StatStat(name, round(value))
 
         raise UnknownStat
 

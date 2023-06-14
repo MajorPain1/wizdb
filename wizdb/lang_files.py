@@ -40,7 +40,7 @@ class LangCache:
             file, _ = key.decode().split("_", 1)
             self.add_file((self.locale / file).with_suffix(".lang"))
 
-        if self.lookup.get(key_hash) is not None:
+        if self.lookup.get(key_hash) is not None and self.lookup.get(key_hash) != "Natural Attack":
             return key_hash
         else:
             return None
