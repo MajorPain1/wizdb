@@ -22,11 +22,11 @@ class SchoolRequirement(EquipRequirement):
 
 
 def _is_school_req(req: dict) -> bool:
-    return len(req) == 3 and "m_magicSchool" in req
+    return len(req) == 4 and "m_magicSchool" in req
 
 
 def _is_level_req(req: dict) -> bool:
-    return len(req) == 5 and "m_operatorType" in req and "m_numericValue" in req
+    return len(req) == 6 and "m_operatorType" in req and "m_numericValue" in req
 
 
 def parse_equip_reqs(reqs: dict) -> set:

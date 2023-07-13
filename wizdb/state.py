@@ -66,3 +66,6 @@ class State:
 
     def make_lang_key(self, obj: dict) -> LangKey:
         return LangKey(self.cache, obj)
+    
+    def get_lang_str(self, langkey: LangKey) -> str:
+        return self.cache.lookup.get(langkey.id)

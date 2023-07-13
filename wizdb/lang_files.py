@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from .utils import fnv_1a
 
@@ -27,6 +28,8 @@ class LangCache:
     def __init__(self, locale_dir: Path):
         self.locale = locale_dir
         self.lookup = {}
+        #for file in os.listdir(self.locale):
+            #self.add_file((self.locale / file).with_suffix(".lang"))
 
     def add_entry(self, key: bytes, value: str) -> int:
         key = fnv_1a(key)
