@@ -96,6 +96,8 @@ CREATE TABLE spells (
     school          integer,
     description     integer,
     form            integer,
+    pve             integer,
+    pvp             integer,
 
     rank            integer,
     x_pips          bool,
@@ -164,6 +166,48 @@ CREATE TABLE mob_items (
     foreign key(mob) references mobs(id)
 );
 
+
+CREATE TABLE pets (
+    id              integer not null primary key,
+    name            integer not null,
+    real_name       text,
+    bonus_set       integer,
+    rarity          integer,
+    extra_flags     integer,
+    wow_factor      integer,
+    exclusive       integer,
+    school          integer,
+    egg_name        integer,
+
+    strength        integer,
+    intellect       integer,
+    agility         integer,
+    will            integer,
+    power           integer,
+    
+
+    foreign key(name)        references locale_en(id)
+);
+
+CREATE TABLE talents (
+    id       integer not null primary key,
+    priority integer,
+    pet      integer not null,
+
+    talent   integer,
+
+    foreign key(pet) references pets(id)
+);
+
+
+CREATE TABLE pet_cards (
+    id       integer not null primary key,
+    pet      integer not null,
+    spell    integer not null,
+
+    foreign key(pet) references pets(id)
+);
+
 """
 
 
@@ -195,7 +239,7 @@ def _progress(_status, remaining, total):
     print(f'Copied {total-remaining} of {total} pages...')
 
 
-def build_db(state, items, mobs, out):
+def build_db(state, items, mobs, pets, out):
     mem = sqlite3.connect(":memory:")
     cursor = mem.cursor()
 
@@ -205,10 +249,11 @@ def build_db(state, items, mobs, out):
     insert_set_bonuses(cursor, state.bonuses)
     insert_items(cursor, items)
     insert_mobs(cursor, mobs)
+    insert_pets(cursor, pets)
     mem.commit()
 
     with out:
-        mem.backup(out, pages=1, progress=_progress)
+        mem.backup(out, pages=1)
 
     mem.close()
 
@@ -238,6 +283,8 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
             spell.school,
             spell.description.id,
             spell.type_name,
+            spell.pve,
+            spell.pvp,
             spell.rank,
             spell.x_pips,
             spell.shadow_pips,
@@ -262,7 +309,7 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
 
 
     cursor.executemany(
-        "INSERT INTO spells(template_id,name,real_name,image,accuracy,energy,school,description,form,rank,x_pips,shadow_pips,fire_pips,ice_pips,storm_pips,myth_pips,life_pips,death_pips,balance_pips) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO spells(template_id,name,real_name,image,accuracy,energy,school,description,form,pve,pvp,rank,x_pips,shadow_pips,fire_pips,ice_pips,storm_pips,myth_pips,life_pips,death_pips,balance_pips) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         spells
     )
 
@@ -378,6 +425,53 @@ def insert_mobs(cursor, mobs):
     cursor.executemany(
         """INSERT INTO mob_items(mob,item) VALUES (?,?)""",
         items
+    )
+
+
+def insert_pets(cursor, pets):
+    values = []
+    talents = []
+    cards = []
+
+    for pet in pets:
+        values.append((
+            pet.template_id,
+            pet.name.id,
+            pet.real_name,
+            pet.set_bonus_id,
+            pet.rarity,
+            pet.adjectives,
+            pet.wow_factor,
+            pet.exclusive,
+            pet.school,
+            pet.egg_name,
+            pet.strength,
+            pet.intellect,
+            pet.agility,
+            pet.will,
+            pet.power
+        ))
+
+        for talent in pet.talents:
+            talents.append((pet.template_id, talent[0], talent[1].id))
+
+        for talent in pet.derby:
+            talents.append((pet.template_id, talent[0], talent[1].id))
+
+        for card in pet.cards:
+            cards.append((pet.template_id, card))
+    
+    cursor.executemany(
+        "INSERT INTO pets(id,name,real_name,bonus_set,rarity,extra_flags,wow_factor,exclusive,school,egg_name,strength,intellect,agility,will,power) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        values
+    )
+    cursor.executemany(
+        """INSERT INTO talents(pet,priority,talent) VALUES (?,?,?)""",
+        talents
+    )
+    cursor.executemany(
+        """INSERT INTO pet_cards(pet,spell) VALUES (?,?)""",
+        cards
     )
 
 

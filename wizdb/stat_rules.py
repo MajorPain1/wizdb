@@ -117,8 +117,12 @@ class StatRules:
                     value = 1.0
 
                 else:
-                    table = self.tables[table]
-                    value = table["m_statVector"][idx]
+                    
+                    #if template.has_key("m_primaryStat1"):
+
+                    #else:
+                        table = self.tables[table]
+                        value = table["m_statVector"][idx]
 
                 if any(i in category for i in ("Damage", "Piercing", "Accuracy", "PowerPips", "Healing", "ReduceDamage", "StunResistance", "FishingLuck")) and not flat:
                     value *= 100

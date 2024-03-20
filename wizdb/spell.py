@@ -24,8 +24,11 @@ def find_effects(d, effects, damage_types, num_rounds):
             case dict():
                 dictionaries_to_search.append(v)
             case list():
-                if k == "m_elements":
-                    dictionaries_to_search.append(v[0])
+                if k == "m_elements" or k == "m_outputEffect":
+                    try:
+                        dictionaries_to_search.append(v[0])
+                    except IndexError:
+                        pass
                 else:
                     for item in v:
                         if isinstance(item, dict):
@@ -55,6 +58,9 @@ class Spell:
         self.real_name = obj["m_name"]
         self.image = obj["m_imageName"].decode()
         self.accuracy = obj["m_accuracy"]
+
+        self.pve = int(obj["m_PvE"])
+        self.pvp = int(obj["m_PvP"])
 
         if "m_energyCost" in obj:
             self.energy = obj["m_energyCost"]
