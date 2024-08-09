@@ -4,6 +4,7 @@ from sqlite3 import Cursor
 from .lang_files import LangCache
 from .set_bonus import SetBonusCache
 from .spell import SpellCache
+from .statcap import StatCap
 
 INIT_QUERIES = """CREATE TABLE locale_en (
     id   integer not null primary key,
@@ -98,6 +99,7 @@ CREATE TABLE spells (
     form            integer,
     pve             integer,
     pvp             integer,
+    levelreq        integer,
 
     rank            integer,
     x_pips          bool,
@@ -135,6 +137,7 @@ CREATE TABLE mobs (
     hp                  integer,
     primary_school      integer,
     secondary_school    integer,
+    stunnable           bool,
     max_shadow          integer,
     has_cheats          bool,
     intelligence        real,
@@ -208,6 +211,78 @@ CREATE TABLE pet_cards (
     foreign key(pet) references pets(id)
 );
 
+CREATE TABLE statcaps (
+    level               integer,
+    school              integer,
+
+    max_pips            integer,
+    max_power_pips      integer,
+    hp                  integer,
+    mana                integer,
+    ppc                 integer,
+    shad_rating         integer,
+    archmastery         integer,
+    outgoing            integer,
+    incoming            integer,
+
+    b_acc               integer,
+    d_acc               integer,
+    f_acc               integer,
+    i_acc               integer,
+    l_acc               integer,
+    m_acc               integer,
+    s_acc               integer,
+
+    b_ap                integer,
+    d_ap                integer,
+    f_ap                integer,
+    i_ap                integer,
+    l_ap                integer,
+    m_ap                integer,
+    s_ap                integer,
+
+    b_block             integer,
+    d_block             integer,
+    f_block             integer,
+    i_block             integer,
+    l_block             integer,
+    m_block             integer,
+    s_block             integer,
+
+    b_crit              integer,
+    d_crit              integer,
+    f_crit              integer,
+    i_crit              integer,
+    l_crit              integer,
+    m_crit              integer,
+    s_crit              integer,
+
+    b_damage            integer,
+    d_damage            integer,
+    f_damage            integer,
+    i_damage            integer,
+    l_damage            integer,
+    m_damage            integer,
+    s_damage            integer,
+
+    b_pserve            integer,
+    d_pserve            integer,
+    f_pserve            integer,
+    i_pserve            integer,
+    l_pserve            integer,
+    m_pserve            integer,
+    s_pserve            integer,
+
+    b_resist            integer,
+    d_resist            integer,
+    f_resist            integer,
+    i_resist            integer,
+    l_resist            integer,
+    m_resist            integer,
+    s_resist            integer
+);
+
+
 """
 
 
@@ -239,7 +314,7 @@ def _progress(_status, remaining, total):
     print(f'Copied {total-remaining} of {total} pages...')
 
 
-def build_db(state, items, mobs, pets, out):
+def build_db(state, items, mobs, pets, stat_caps, out):
     mem = sqlite3.connect(":memory:")
     cursor = mem.cursor()
 
@@ -250,6 +325,7 @@ def build_db(state, items, mobs, pets, out):
     insert_items(cursor, items)
     insert_mobs(cursor, mobs)
     insert_pets(cursor, pets)
+    insert_statcaps(cursor, stat_caps)
     mem.commit()
 
     with out:
@@ -285,6 +361,7 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
             spell.type_name,
             spell.pve,
             spell.pvp,
+            spell.levelreq,
             spell.rank,
             spell.x_pips,
             spell.shadow_pips,
@@ -309,7 +386,7 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
 
 
     cursor.executemany(
-        "INSERT INTO spells(template_id,name,real_name,image,accuracy,energy,school,description,form,pve,pvp,rank,x_pips,shadow_pips,fire_pips,ice_pips,storm_pips,myth_pips,life_pips,death_pips,balance_pips) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO spells(template_id,name,real_name,image,accuracy,energy,school,description,form,pve,pvp,levelreq,rank,x_pips,shadow_pips,fire_pips,ice_pips,storm_pips,myth_pips,life_pips,death_pips,balance_pips) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         spells
     )
 
@@ -399,6 +476,7 @@ def insert_mobs(cursor, mobs):
             mob.hitpoints,
             mob.primarySchool,
             mob.secondarySchool,
+            mob.stunnable,
             mob.max_shadow,
             mob.has_cheats,
             mob.intelligence,
@@ -415,7 +493,7 @@ def insert_mobs(cursor, mobs):
 
 
     cursor.executemany(
-        "INSERT INTO mobs(id,name,real_name,image,title,rank,hp,primary_school,secondary_school,max_shadow,has_cheats,intelligence,selfishness,aggressiveness,monstro) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO mobs(id,name,real_name,image,title,rank,hp,primary_school,secondary_school,stunnable,max_shadow,has_cheats,intelligence,selfishness,aggressiveness,monstro) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         values
     )
     cursor.executemany(
@@ -472,6 +550,79 @@ def insert_pets(cursor, pets):
     cursor.executemany(
         """INSERT INTO pet_cards(pet,spell) VALUES (?,?)""",
         cards
+    )
+
+def insert_statcaps(cursor, stat_caps):
+    values = []
+
+    for stat_cap in stat_caps:
+        stat_cap: StatCap
+        values.append((
+            stat_cap.level,
+            stat_cap.school,
+            stat_cap.max_pips,
+            stat_cap.max_power_pips,
+            stat_cap.max_health,
+            stat_cap.max_mana,
+            stat_cap.ppc,
+            stat_cap.shadow_pip_rating,
+            stat_cap.archmastery,
+            stat_cap.out_healing,
+            stat_cap.inc_healing,
+            stat_cap.b_acc,
+            stat_cap.d_acc,
+            stat_cap.f_acc,
+            stat_cap.i_acc,
+            stat_cap.l_acc,
+            stat_cap.m_acc,
+            stat_cap.s_acc,
+            stat_cap.b_ap,
+            stat_cap.d_ap,
+            stat_cap.f_ap,
+            stat_cap.i_ap,
+            stat_cap.l_ap,
+            stat_cap.m_ap,
+            stat_cap.s_ap,
+            stat_cap.b_block,
+            stat_cap.d_block,
+            stat_cap.f_block,
+            stat_cap.i_block,
+            stat_cap.l_block,
+            stat_cap.m_block,
+            stat_cap.s_block,
+            stat_cap.b_crit,
+            stat_cap.d_crit,
+            stat_cap.f_crit,
+            stat_cap.i_crit,
+            stat_cap.l_crit,
+            stat_cap.m_crit,
+            stat_cap.s_crit,
+            stat_cap.b_damage,
+            stat_cap.d_damage,
+            stat_cap.f_damage,
+            stat_cap.i_damage,
+            stat_cap.l_damage,
+            stat_cap.m_damage,
+            stat_cap.s_damage,
+            stat_cap.b_pserve,
+            stat_cap.d_pserve,
+            stat_cap.f_pserve,
+            stat_cap.i_pserve,
+            stat_cap.l_pserve,
+            stat_cap.m_pserve,
+            stat_cap.s_pserve,
+            stat_cap.b_resist,
+            stat_cap.d_resist,
+            stat_cap.f_resist,
+            stat_cap.i_resist,
+            stat_cap.l_resist,
+            stat_cap.m_resist,
+            stat_cap.s_resist,
+        ))
+    
+    cursor.executemany(
+        """INSERT INTO statcaps (level, school, max_pips, max_power_pips, hp, mana, ppc, shad_rating, archmastery, outgoing, incoming, b_acc, d_acc, f_acc, i_acc, l_acc, m_acc, s_acc, b_ap, d_ap, f_ap, i_ap, l_ap, m_ap, s_ap, b_block, d_block, f_block, i_block, l_block, m_block, s_block, b_crit, d_crit, f_crit, i_crit, l_crit, m_crit, s_crit, b_damage, d_damage, f_damage, i_damage, l_damage, m_damage, s_damage, b_pserve, d_pserve, f_pserve, i_pserve, l_pserve, m_pserve, s_pserve, b_resist, d_resist, f_resist, i_resist, l_resist, m_resist, s_resist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        values
     )
 
 

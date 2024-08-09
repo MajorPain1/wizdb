@@ -76,6 +76,7 @@ class Mob:
                     equipment_behavior = behavior
 
         self.title = mob_titles[effect_behavior["m_mobTitle"]]
+        self.stunnable = effect_behavior["m_bossMob"]
         self.intelligence = round(effect_behavior["m_fIntelligence"], 5)
         self.selfishFactor = round(effect_behavior["m_fSelfishFactor"], 5)
         self.aggressiveFactor = effect_behavior["m_nAggressiveFactor"]

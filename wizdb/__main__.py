@@ -9,6 +9,7 @@ from .db import build_db
 from .item import Item, is_item_template
 from .mob import Mob, is_mob_template
 from .pet import Pet, is_pet_template
+from .statcap import StatCap
 from .state import State
 from .stat_rules import UnknownStat
 
@@ -20,12 +21,20 @@ TYPES = ROOT / "types.json"
 LOCALE = ROOT_WAD / "Locale" / "English"
 STAT_EFFECTS = ROOT_WAD / "GameEffectData" / "CanonicalStatEffects.xml"
 STAT_RULES = ROOT_WAD / "GameEffectRuleData"
+STAT_CAPS = ROOT_WAD / "LevelScaledData.xml"
 
 
 def deserialize_files(state: State):
     items = []
     mobs = []
     pets = []
+    stat_caps = []
+
+    stat_cap_obj = state.de.deserialize_from_path(STAT_CAPS)
+    for stat_cap in stat_cap_obj["m_levelScaledInfoList"]:
+        stat_caps.append(StatCap(stat_cap))
+
+
     for root, dirs, files in os.walk((ROOT_WAD / "ObjectData")):
         for file in files:
             if file.endswith('.xml'):
@@ -51,19 +60,18 @@ def deserialize_files(state: State):
                         pets.append(pet)
                         
 
-
-    return items, mobs, pets
+    return items, mobs, pets, stat_caps
 
 
 def main():
     state = State(ROOT_WAD, TYPES)
-    items, mobs, pets = deserialize_files(state)
+    items, mobs, pets, stat_caps = deserialize_files(state)
 
     if ITEMS_DB.exists():
         ITEMS_DB.unlink()
 
     db = sqlite3.connect(str(ITEMS_DB))
-    build_db(state, items, mobs, pets, db)
+    build_db(state, items, mobs, pets, stat_caps, db)
     db.close()
 
     print(f"Success! Database written to {ITEMS_DB.absolute()}")

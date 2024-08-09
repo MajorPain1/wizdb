@@ -4,10 +4,12 @@ from typing import List
 
 from .utils import SCHOOLS, SPELL_TYPES, GARDENING_TYPES, CANTRIP_TYPES, FISHING_TYPES
 
+
 def find_effects(d, effects, damage_types, num_rounds):
     dictionaries_to_search = []
     for k, v in d.items():
         if not "m_effectList" in d and not "m_elements" in d and not "m_outputEffect" in d:
+            
             match k:
                 case "m_effectParam":
                     effects.append(v)
@@ -24,18 +26,17 @@ def find_effects(d, effects, damage_types, num_rounds):
             case dict():
                 dictionaries_to_search.append(v)
             case list():
-                if k == "m_elements" or k == "m_outputEffect":
-                    try:
-                        dictionaries_to_search.append(v[0])
-                    except IndexError:
-                        pass
-                else:
-                    for item in v:
-                        if isinstance(item, dict):
-                            dictionaries_to_search.append(item)
+                rank = -1
+                if len(v) > 0 and isinstance(v[0], dict) and "m_rank" in v[0] and (k == "m_outputEffect" or k == "m_elements"):
+                    rank = v[0]["m_rank"]
 
+                for item in v:
+                    if isinstance(item, dict) and (rank == -1 or item["m_rank"] == rank):
+                        dictionaries_to_search.append(item)
+                        
     for dictionary in dictionaries_to_search:
         find_effects(dictionary, effects, damage_types, num_rounds)
+
 
 def remove_duplicates(lst):
     seen = {}
@@ -58,6 +59,10 @@ class Spell:
         self.real_name = obj["m_name"]
         self.image = obj["m_imageName"].decode()
         self.accuracy = obj["m_accuracy"]
+        try:
+            self.levelreq = obj["m_levelRestriction"]
+        except KeyError:
+            self.levelreq = 0
 
         self.pve = int(obj["m_PvE"])
         self.pvp = int(obj["m_PvP"])
