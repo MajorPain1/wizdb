@@ -192,6 +192,25 @@ CREATE TABLE pets (
     foreign key(name)        references locale_en(id)
 );
 
+CREATE TABLE fish (
+    id                          integer not null primary key,
+    name                        integer not null,
+    real_name                   text,
+    rank                        integer,
+    school                      integer,
+    base_length                 real,
+    min_size                    real,
+    max_size                    real,
+    speed                       real,
+    bite_seconds                real,
+    initial_bite_chance         real,
+    incremental_bite_chance     real,
+    is_sentinel                 bool,
+    
+
+    foreign key(name)        references locale_en(id)
+);
+
 CREATE TABLE talents (
     id       integer not null primary key,
     priority integer,
@@ -314,7 +333,7 @@ def _progress(_status, remaining, total):
     print(f'Copied {total-remaining} of {total} pages...')
 
 
-def build_db(state, items, mobs, pets, stat_caps, out):
+def build_db(state, items, mobs, pets, fish, stat_caps, out):
     mem = sqlite3.connect(":memory:")
     cursor = mem.cursor()
 
@@ -325,6 +344,7 @@ def build_db(state, items, mobs, pets, stat_caps, out):
     insert_items(cursor, items)
     insert_mobs(cursor, mobs)
     insert_pets(cursor, pets)
+    insert_fish(cursor, fish)
     insert_statcaps(cursor, stat_caps)
     mem.commit()
 
@@ -550,6 +570,31 @@ def insert_pets(cursor, pets):
     cursor.executemany(
         """INSERT INTO pet_cards(pet,spell) VALUES (?,?)""",
         cards
+    )
+    
+def insert_fish(cursor, fishs):
+    values = []
+
+    for fish in fishs:
+        values.append((
+            fish.template_id,
+            fish.name.id,
+            fish.real_name,
+            fish.rank,
+            fish.school,
+            fish.base_length,
+            fish.min_size,
+            fish.max_size,
+            fish.speed,
+            fish.bite_seconds,
+            fish.initial_bite_chance,
+            fish.incremental_bite_chance,
+            fish.is_sentinel
+        ))
+    
+    cursor.executemany(
+        "INSERT INTO fish(id,name,real_name,rank,school,base_length,min_size,max_size,speed,bite_seconds,initial_bite_chance,incremental_bite_chance,is_sentinel) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        values
     )
 
 def insert_statcaps(cursor, stat_caps):

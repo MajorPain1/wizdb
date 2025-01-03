@@ -40,6 +40,7 @@ SPELL_TYPES = [
     b"Shadow",
     b"Shadow_Creature",
     b"Shadow_Self",
+    b"AuraNegative"
 ]
 
 GARDENING_TYPES = [

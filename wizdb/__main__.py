@@ -9,6 +9,7 @@ from .db import build_db
 from .item import Item, is_item_template
 from .mob import Mob, is_mob_template
 from .pet import Pet, is_pet_template
+from .fish import Fish, is_fish_template
 from .statcap import StatCap
 from .state import State
 from .stat_rules import UnknownStat
@@ -28,6 +29,7 @@ def deserialize_files(state: State):
     items = []
     mobs = []
     pets = []
+    fishs = []
     stat_caps = []
 
     stat_cap_obj = state.de.deserialize_from_path(STAT_CAPS)
@@ -59,19 +61,22 @@ def deserialize_files(state: State):
                         pet = Pet(state, obj)
                         pets.append(pet)
                         
+                    if is_fish_template(obj):
+                        fish = Fish(state, obj)
+                        fishs.append(fish)
 
-    return items, mobs, pets, stat_caps
+    return items, mobs, pets, fishs, stat_caps
 
 
 def main():
     state = State(ROOT_WAD, TYPES)
-    items, mobs, pets, stat_caps = deserialize_files(state)
+    items, mobs, pets, fish, stat_caps = deserialize_files(state)
 
     if ITEMS_DB.exists():
         ITEMS_DB.unlink()
 
     db = sqlite3.connect(str(ITEMS_DB))
-    build_db(state, items, mobs, pets, stat_caps, db)
+    build_db(state, items, mobs, pets, fish, stat_caps, db)
     db.close()
 
     print(f"Success! Database written to {ITEMS_DB.absolute()}")
