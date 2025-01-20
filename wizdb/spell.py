@@ -1,8 +1,9 @@
+from enum import Enum
 from kobold_py import KoboldError
 from struct import pack as pk
 from typing import List
 
-from .utils import SCHOOLS, SPELL_TYPES, GARDENING_TYPES, CANTRIP_TYPES, FISHING_TYPES
+from .utils import SCHOOLS, SPELL_TYPES, GARDENING_TYPES, CANTRIP_TYPES, FISHING_TYPES, DISPOSITION
 
 
 def find_effects(d, effects, damage_types, num_rounds):
@@ -49,6 +50,423 @@ def remove_duplicates(lst):
     
     return result
 
+target_type = {
+    "enum ConditionalSpellEffectRequirement::RequirementTarget::RT_Caster": "Caster",
+    "enum ConditionalSpellEffectRequirement::RequirementTarget::RT_Target": "Target"
+}
+
+operator_type = {
+    "enum Requirement::Operator::ROP_OR": "or",
+    "enum Requirement::Operator::ROP_AND": "and"
+}
+
+def parse_condition(obj):
+    req_list = []
+    for req in obj["m_requirements"]:
+        match req["$__type"]:
+            case b"class ReqHangingCharm" | b"class ReqHangingWard" | b"class ReqHangingOverTime":
+                count = req["m_minCount"]
+                applyNot = int(req["m_applyNOT"])
+                disposition = req["m_disposition"]
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                
+                req_string = f"{operator}" + " not"*applyNot + f" {count}"
+                
+                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kHarmful":
+                    if req["$__type"] == b"class ReqHangingCharm":
+                        req_string += " Weakness"
+                    if req["$__type"] == b"class ReqHangingWard":
+                        req_string += " Trap"
+                    if req["$__type"] == b"class ReqHangingOverTime":
+                        req_string += " DOT"
+                        
+                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBeneficial":
+                    if req["$__type"] == b"class ReqHangingCharm":
+                        req_string += " Blade"
+                    if req["$__type"] == b"class ReqHangingWard":
+                        req_string += " Shield"
+                    if req["$__type"] == b"class ReqHangingOverTime":
+                        req_string += " HOT"
+                
+                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBoth":
+                    if req["$__type"] == b"class ReqHangingCharm":
+                        req_string += " Charm"
+                    if req["$__type"] == b"class ReqHangingWard":
+                        req_string += " Ward"
+                    if req["$__type"] == b"class ReqHangingOverTime":
+                        req_string += " OT"
+                
+                req_string += f" on {target}"
+                req_list.append(req_string)
+            
+            case b"class ReqHangingAura":
+                applyNot = int(req["m_applyNOT"])
+                disposition = req["m_disposition"]
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                
+                req_string = f"{operator}" + " not"*applyNot
+                
+                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kHarmful":
+                    req_string += " Negative Aura"
+                    req_string += f" on {target}"
+                
+                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBeneficial":
+                    req_string += " Aura"
+                    req_string += f" on {target}"
+                
+                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBoth":
+                    req_string += " Global"
+                
+                req_list.append(req_string)
+            
+            case b"class ReqIsSchool":
+                school = req["m_magicSchoolName"].decode("utf-8")
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" {target} School {school}")
+            
+            case b"class ReqMinion":
+                #minion_type = req["m_minionType"]
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" {target} has Minion")
+            
+            case b'class ReqHangingEffectType':
+                applyNot = int(req["m_applyNOT"])
+                count = req["m_min_count"]
+                effect_type = req["m_effectType"].split("::")[-1][1:]
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" {target} has {count} {effect_type}")
+            
+            case b'class ReqCombatHealth':
+                max_health = int(req["m_fMaxPercent"]*100)
+                min_health = int(req["m_fMinPercent"]*100)
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_string = f"{operator}" + " not"*applyNot + f" {target} "
+                
+                if max_health > 100:
+                    req_string += f"above {min_health}% HP"
+                elif min_health < 0:
+                    req_string += f"below {max_health}% HP"
+                else:
+                    req_string += f"between {min_health}% and {max_health}% HP"
+                
+                req_list.append(req_string)
+            
+            case b'class ReqShadowPipCount':
+                min_pips = req["m_minPips"]
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" {min_pips} Shadow Pips on {target}")
+            
+            case b'class ReqPipCount':
+                min_pips = req["m_minPips"]
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" {min_pips} Pips on {target}")
+            
+            case b'class ReqPvPCombat':
+                applyNot = int(req["m_applyNOT"])
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" PvP")
+            
+            case b'class ReqCombatStatus':
+                status = req["m_status"].split("::")[-1][1:]
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append(f"{operator}" + " not"*applyNot + f" {target} {status}")
+    
+    if len(req_list) == 0:
+        return ""
+    
+    first_req = req_list[0].replace("and ", "").replace("or ", "")
+    ret = f"If {first_req}"
+    
+    if len(req_list) == 1:
+        return ret
+    
+    for req in req_list[1:]:
+        ret += f" {req}"
+    
+    return ret
+
+class Disposition(Enum):
+    both = 0
+    beneficial = 1
+    harmful = 2
+
+class EffectTarget(Enum):
+    invalid_target = 0
+    spell = 1
+    specific_spells = 2
+    target_global = 3
+    enemy_team = 4
+    enemy_team_all_at_once = 5
+    friendly_team = 6
+    friendly_team_all_at_once = 7
+    enemy_single = 8
+    friendly_single = 9
+    minion = 10
+    friendly_minion = 17
+    self = 11
+    at_least_one_enemy = 13
+    preselected_enemy_single = 12
+    multi_target_enemy = 14
+    multi_target_friendly = 15
+    friendly_single_not_me = 16
+
+class SpellEffects(Enum):
+    invalid_spell_effect = 0
+    damage = 1
+    damage_no_crit = 2
+    heal = 3
+    heal_percent = 4
+    set_heal_percent = 111
+    steal_health = 5
+    reduce_over_time = 6
+    detonate_over_time = 7
+    push_charm = 8
+    steal_charm = 9
+    push_ward = 10
+    steal_ward = 11
+    push_over_time = 12
+    steal_over_time = 13
+    remove_charm = 14
+    remove_ward = 15
+    remove_over_time = 16
+    remove_aura = 17
+    swap_all = 18
+    swap_charm = 19
+    swap_ward = 20
+    swap_over_time = 21
+    modify_incoming_damage = 22
+    modify_incoming_damage_flat = 117
+    maximum_incoming_damage = 23
+    modify_incoming_heal = 24
+    modify_incoming_heal_flat = 116
+    modify_incoming_damage_type = 25
+    modify_incoming_armor_piercing = 26
+    modify_outgoing_damage = 27
+    modify_outgoing_damage_flat = 119
+    modify_outgoing_heal = 28
+    modify_outgoing_heal_flat = 118
+    modify_outgoing_damage_type = 29
+    modify_outgoing_armor_piercing = 30
+    bounce_next = 31
+    bounce_previous = 32
+    bounce_back = 33
+    bounce_all = 34
+    absorb_damage = 35
+    absorb_heal = 36
+    modify_accuracy = 37
+    dispel = 38
+    confusion = 39
+    cloaked_charm = 40
+    cloaked_ward = 41
+    stun_resist = 42
+    clue = 109
+    pip_conversion = 43
+    crit_boost = 44
+    crit_block = 45
+    polymorph = 46
+    delay_cast = 47
+    modify_card_cloak = 48
+    modify_card_damage = 49
+    modify_card_accuracy = 51
+    modify_card_mutation = 52
+    modify_card_rank = 53
+    modify_card_armor_piercing = 54
+    summon_creature = 63
+    teleport_player = 64
+    stun = 65
+    dampen = 66
+    reshuffle = 67
+    mind_control = 68
+    modify_pips = 69
+    modify_power_pips = 70
+    modify_shadow_pips = 71
+    modify_hate = 72
+    damage_over_time = 73
+    heal_over_time = 74
+    modify_power_pip_chance = 75
+    modify_rank = 76
+    stun_block = 77
+    reveal_cloak = 78
+    instant_kill = 79
+    after_life = 80
+    deferred_damage = 81
+    damage_per_total_pip_power = 82
+    modify_card_heal = 50
+    modify_card_charm = 55
+    modify_card_warn = 56
+    modify_card_outgoing_damage = 57
+    modify_card_outgoing_accuracy = 58
+    modify_card_outgoing_heal = 59
+    modify_card_outgoing_armor_piercing = 60
+    modify_card_incoming_damage = 61
+    modify_card_absorb_damage = 62
+    cloaked_ward_no_remove = 84
+    add_combat_trigger_list = 85
+    remove_combat_trigger_list = 86
+    backlash_damage = 87
+    modify_backlash = 88
+    intercept = 89
+    shadow_self = 90
+    shadow_creature = 91
+    modify_shadow_creature_level = 92
+    select_shadow_creature_attack_target = 93
+    shadow_decrement_turn = 94
+    crit_boost_school_specific = 95
+    spawn_creature = 96
+    unpolymorph = 97
+    power_pip_conversion = 98
+    protect_card_beneficial = 99
+    protect_card_harmful = 100
+    protect_beneficial = 101
+    protect_harmful = 102
+    divide_damage = 103
+    collect_essence = 104
+    kill_creature = 105
+    dispel_block = 106
+    confusion_block = 107
+    modify_pip_round_rate = 108
+    max_health_damage = 110
+    untargetable = 112
+    make_targetable = 113
+    force_targetable = 114
+    remove_stun_block = 115
+    exit_combat = 120
+    suspend_pips = 121
+    resume_pips = 122
+    auto_pass = 123
+    stop_auto_pass = 124
+    vanish = 125
+    stop_vanish = 126
+    max_health_heal = 127
+    heal_by_ward = 128
+    taunt = 129
+    pacify = 130
+    remove_target_restriction = 131
+    convert_hanging_effect = 132
+    add_spell_to_deck = 133
+    add_spell_to_hand = 134
+    modify_incoming_damage_over_time = 135
+    modify_incoming_heal_over_time = 136
+    modify_card_damage_by_rank = 137
+    push_converted_charm = 138
+    steal_converted_charm = 139
+    push_converted_ward = 140
+    steal_converted_ward = 141
+    push_converted_over_time = 142
+    steal_converted_over_time = 143
+    remove_converted_charm = 144
+    remove_converted_ward = 145
+    remove_converted_over_time = 146
+    modify_over_time_duration = 147
+
+class EffectClass(Enum):
+    spell_effect = 0
+    random_spell_effect = 1
+    variable_spell_effect = 2
+    conditional_spell_effect = 3
+    conditional_spell_element = 4
+    target_count_spell_effect = 5
+    hanging_conversion_spell_effect = 6
+
+
+class SpellEffect:
+    def __init__(self, spell_id):
+        self.spell_id = spell_id
+        self.effect_class = EffectClass.spell_effect
+        self.param = -1
+        self.disposition = 0
+        self.target = ""
+        self.type = ""
+        self.heal_modifier = 1.0
+        self.rounds = 0
+        self.pip_num = 0
+        self.protected = False
+        self.rank = 0
+        self.school = 0
+        self.condition = ""
+        self.sub_effects = []
+    
+    def build_effect_tree(self, obj):
+        match obj["$__type"]:
+            case b"class SpellEffect":
+                self.effect_class = EffectClass.spell_effect
+                self.param = obj["m_effectParam"]
+                self.disposition = DISPOSITION.index(obj["m_disposition"])
+                self.target = obj["m_effectTarget"].split("::")[-1]
+                self.type = obj["m_effectType"].split("::")[-1]
+                self.heal_modifier = obj["m_healModifier"]
+                self.rounds = obj["m_numRounds"]
+                self.pip_num = obj["m_pipNum"]
+                self.protected = obj["m_protected"]
+                self.rank = obj["m_rank"]
+                if obj["m_sDamageType"] in SCHOOLS:
+                    self.school = SCHOOLS.index(obj["m_sDamageType"])
+                else:
+                    self.school = 0
+                
+            case b"class RandomSpellEffect":
+                self.effect_class = EffectClass.random_spell_effect
+                self.condition = "Random"
+                for sub_effect in obj["m_effectList"]:
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(sub_effect)
+                    self.sub_effects.append(sub_effect_obj)
+            
+            case b"class VariableSpellEffect":
+                self.effect_class = EffectClass.variable_spell_effect
+                self.condition = "Variable"
+                for sub_effect in obj["m_effectList"]:
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(sub_effect)
+                    self.sub_effects.append(sub_effect_obj)
+            
+            case b"class ConditionalSpellEffect":
+                self.effect_class = EffectClass.conditional_spell_effect
+                for element in obj["m_elements"]:
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(element)
+                    self.sub_effects.append(sub_effect_obj)
+            
+            case b"class ConditionalSpellElement":
+                self.effect_class = EffectClass.conditional_spell_element
+                if obj["m_pReqs"] != None:
+                    self.condition = parse_condition(obj["m_pReqs"])
+                sub_effect = obj["m_pEffect"]
+                sub_effect_obj = SpellEffect(self.spell_id)
+                sub_effect_obj.build_effect_tree(sub_effect)
+                self.sub_effects.append(sub_effect_obj)
+            
+            case b"class TargetCountSpellEffect":
+                self.effect_class = EffectClass.target_count_spell_effect
+                sub_effect = obj["m_effectLists"][0]
+                sub_effect_obj = SpellEffect(self.spell_id)
+                sub_effect_obj.build_effect_tree(sub_effect)
+                self.sub_effects.append(sub_effect_obj)
+
+            case b"class EffectListSpellEffect" | b"class ShadowSpellEffect":
+                self.effect_class = EffectClass.conditional_spell_effect
+                for sub_effect in obj["m_effectList"]:
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(sub_effect)
+                    self.sub_effects.append(sub_effect_obj)
+            
+            #case b"class HangingConversionSpellEffect":
+                
 
 class Spell:
     def __init__(self, template_id: int, state, obj: dict):
@@ -102,7 +520,13 @@ class Spell:
         raw_damage_types = []
         raw_num_rounds = []
         find_effects(obj, raw_effects, raw_damage_types, raw_num_rounds)
-
+        
+        self.spell_effects = []
+        for effect in obj["m_effects"]:
+            effect_obj = SpellEffect(template_id)
+            effect_obj.build_effect_tree(effect)
+            self.spell_effects.append(effect_obj)
+            
         self.effect_params= raw_effects
         self.damage_types = raw_damage_types
         self.num_rounds = raw_num_rounds

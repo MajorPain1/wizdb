@@ -115,6 +115,27 @@ CREATE TABLE spells (
     foreign key(name)        references locale_en(id)
 );
 
+CREATE TABLE spell_effects (
+    id              integer not null primary key,
+    spell_id        integer not null,
+    parent_id       integer not null,
+    idx             integer,
+    effect_class    integer,
+    param           integer,
+    disposition     integer,
+    target          text,
+    type            text,
+    heal_modifier   real,
+    rounds          integer,
+    pip_num         integer,
+    protected       bool,
+    rank            integer,
+    school          integer,
+    condition       text,
+    
+    foreign key(spell_id) references spells(id)
+);
+
 CREATE TABLE effects (
     id       integer not null primary key,
     spell    integer not null,
@@ -364,10 +385,45 @@ def insert_locale_data(cursor, cache: LangCache):
         cache.lookup.items()
     )
 
+def insert_effect(cursor: Cursor, i, effect, parent_id):
+    # Insert the current effect into the database
+    cursor.execute(
+        """
+        INSERT INTO spell_effects (
+            spell_id, parent_id, idx, effect_class, param, disposition, target, 
+            type, heal_modifier, rounds, pip_num, protected, rank, school, condition
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            effect.spell_id,
+            parent_id,
+            i,
+            effect.effect_class.value,
+            effect.param,
+            effect.disposition,
+            effect.target,
+            effect.type,
+            effect.heal_modifier,
+            effect.rounds,
+            effect.pip_num,
+            effect.protected,
+            effect.rank,
+            effect.school,
+            effect.condition,
+        )
+    )
+    
+    # Get the ID of the inserted effect
+    current_id = cursor.lastrowid
+    
+    # Recursively insert sub-effects
+    for j, sub_effect in enumerate(effect.sub_effects):
+        insert_effect(cursor, j, sub_effect, current_id)
 
 def insert_spell_data(cursor: Cursor, cache: SpellCache):
     spells = []
     effects = []
+    spell_effects = []
     for template, spell in cache.cache.items():
         spells.append((
             template,
@@ -402,6 +458,9 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
                 spell.damage_types[i],
                 spell.num_rounds[i],
             ))
+        
+        for effect in enumerate(spell.spell_effects):
+            spell_effects.append(effect)
 
 
 
@@ -416,6 +475,8 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
         effects
     )
     
+    for i, effect in spell_effects:
+        insert_effect(cursor, i, effect, parent_id=-1)
 
 
 def insert_set_bonuses(cursor, cache: SetBonusCache):

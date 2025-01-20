@@ -64,6 +64,11 @@ CANTRIP_TYPES = [
     "enum CantripsSpellTemplate::CantripsSpellType::CS_Ritual",
 ]
 
+DISPOSITION = [
+    "enum SpellEffect::kHangingDisposition::kBoth",
+    "enum SpellEffect::kHangingDisposition::kBeneficial",
+    "enum SpellEffect::kHangingDisposition::kHarmful",
+]
 
 
 def convert_rarity(obj: dict) -> int:
