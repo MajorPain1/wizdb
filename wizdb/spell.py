@@ -62,6 +62,7 @@ operator_type = {
 
 def parse_condition(obj):
     req_list = []
+    neg_aura_added = False
     for req in obj["m_requirements"]:
         match req["$__type"]:
             case b"class ReqHangingCharm" | b"class ReqHangingWard" | b"class ReqHangingOverTime":
@@ -119,7 +120,9 @@ def parse_condition(obj):
                 if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBoth":
                     req_string += " Global"
                 
-                req_list.append(req_string)
+                if not neg_aura_added:
+                    req_list.append(req_string)
+                    neg_aura_added = True
             
             case b"class ReqIsSchool":
                 school = req["m_magicSchoolName"].decode("utf-8")
@@ -199,6 +202,11 @@ def parse_condition(obj):
         ret += f" {req}"
     
     return ret
+
+def parse_convert_condition(obj):
+    input_effect = obj["m_hangingEffectType"].split("_")[-1]
+    count = obj["m_maxEffectCount"]
+    return f"Convert Up To {count} {input_effect}"
 
 class Disposition(Enum):
     both = 0
@@ -422,6 +430,20 @@ class SpellEffect:
             case b"class RandomSpellEffect":
                 self.effect_class = EffectClass.random_spell_effect
                 self.condition = "Random"
+                self.param = obj["m_effectParam"]
+                self.disposition = DISPOSITION.index(obj["m_disposition"])
+                self.target = obj["m_effectTarget"].split("::")[-1]
+                self.type = obj["m_effectType"].split("::")[-1]
+                self.heal_modifier = obj["m_healModifier"]
+                self.rounds = obj["m_numRounds"]
+                self.pip_num = obj["m_pipNum"]
+                self.protected = obj["m_protected"]
+                self.rank = obj["m_rank"]
+                if obj["m_sDamageType"] in SCHOOLS:
+                    self.school = SCHOOLS.index(obj["m_sDamageType"])
+                else:
+                    self.school = 0
+                
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
                     sub_effect_obj.build_effect_tree(sub_effect)
@@ -430,6 +452,20 @@ class SpellEffect:
             case b"class VariableSpellEffect":
                 self.effect_class = EffectClass.variable_spell_effect
                 self.condition = "Variable"
+                self.param = obj["m_effectParam"]
+                self.disposition = DISPOSITION.index(obj["m_disposition"])
+                self.target = obj["m_effectTarget"].split("::")[-1]
+                self.type = obj["m_effectType"].split("::")[-1]
+                self.heal_modifier = obj["m_healModifier"]
+                self.rounds = obj["m_numRounds"]
+                self.pip_num = obj["m_pipNum"]
+                self.protected = obj["m_protected"]
+                self.rank = obj["m_rank"]
+                if obj["m_sDamageType"] in SCHOOLS:
+                    self.school = SCHOOLS.index(obj["m_sDamageType"])
+                else:
+                    self.school = 0
+                
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
                     sub_effect_obj.build_effect_tree(sub_effect)
@@ -437,6 +473,20 @@ class SpellEffect:
             
             case b"class ConditionalSpellEffect":
                 self.effect_class = EffectClass.conditional_spell_effect
+                self.param = obj["m_effectParam"]
+                self.disposition = DISPOSITION.index(obj["m_disposition"])
+                self.target = obj["m_effectTarget"].split("::")[-1]
+                self.type = obj["m_effectType"].split("::")[-1]
+                self.heal_modifier = obj["m_healModifier"]
+                self.rounds = obj["m_numRounds"]
+                self.pip_num = obj["m_pipNum"]
+                self.protected = obj["m_protected"]
+                self.rank = obj["m_rank"]
+                if obj["m_sDamageType"] in SCHOOLS:
+                    self.school = SCHOOLS.index(obj["m_sDamageType"])
+                else:
+                    self.school = 0
+                
                 for element in obj["m_elements"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
                     sub_effect_obj.build_effect_tree(element)
@@ -460,13 +510,46 @@ class SpellEffect:
 
             case b"class EffectListSpellEffect" | b"class ShadowSpellEffect":
                 self.effect_class = EffectClass.conditional_spell_effect
+                self.param = obj["m_effectParam"]
+                self.disposition = DISPOSITION.index(obj["m_disposition"])
+                self.target = obj["m_effectTarget"].split("::")[-1]
+                self.type = obj["m_effectType"].split("::")[-1]
+                self.heal_modifier = obj["m_healModifier"]
+                self.rounds = obj["m_numRounds"]
+                self.pip_num = obj["m_pipNum"]
+                self.protected = obj["m_protected"]
+                self.rank = obj["m_rank"]
+                if obj["m_sDamageType"] in SCHOOLS:
+                    self.school = SCHOOLS.index(obj["m_sDamageType"])
+                else:
+                    self.school = 0
+                
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
                     sub_effect_obj.build_effect_tree(sub_effect)
                     self.sub_effects.append(sub_effect_obj)
             
-            #case b"class HangingConversionSpellEffect":
+            case b"class HangingConversionSpellEffect":
+                self.effect_class = EffectClass.hanging_conversion_spell_effect
+                self.condition = parse_convert_condition(obj)
+                self.param = obj["m_effectParam"]
+                self.disposition = DISPOSITION.index(obj["m_disposition"])
+                self.target = obj["m_effectTarget"].split("::")[-1]
+                self.type = obj["m_effectType"].split("::")[-1]
+                self.heal_modifier = obj["m_healModifier"]
+                self.rounds = obj["m_numRounds"]
+                self.pip_num = obj["m_pipNum"]
+                self.protected = obj["m_protected"]
+                self.rank = obj["m_rank"]
+                if obj["m_sDamageType"] in SCHOOLS:
+                    self.school = SCHOOLS.index(obj["m_sDamageType"])
+                else:
+                    self.school = 0
                 
+                for sub_effect in obj["m_outputEffect"]:
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(sub_effect)
+                    self.sub_effects.append(sub_effect_obj)
 
 class Spell:
     def __init__(self, template_id: int, state, obj: dict):
