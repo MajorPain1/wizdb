@@ -3,12 +3,12 @@
 Builds an SQLite database of items directly from game files.
 
 ## Usage
+Install Katsuba through PyPi
+```
+pip install katsuba
+```
 
-Head over to the [kobold repository](https://github.com/vbe0201/kobold)
-and follow installation instructions in the README. Also do the
-optional steps to install Python library bindings.
-
-Then, head over to the [wiztype repository](https://github.com/wizspoil/wiztype)
+Head over to the [wiztype repository](https://github.com/wizspoil/wiztype)
 and follow README instructions to dump a types JSON from the game client.
 
 Then execute the following commands:
@@ -18,11 +18,10 @@ Then execute the following commands:
 git clone https://github.com/MajorPain1/wizdb
 cd wizdb
 
-# Copy the game's Root.wad file to wizdb/Root.wad
 ...
+# Copy the game's Root.wad file to wizdb/Root.wad
 
-# Use the previous kobold installation to extract it to wizdb/Root/
-kobold wad unpack Root.wad
+# Find a copy of mobdeckbehaviortypes.json from the WizSpoil discord and copy to wizdb/mobdeckbehaviortypes.json
 
 # Copy previously dumped wiztype file to wizdb/types.json
 ...

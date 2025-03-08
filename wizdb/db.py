@@ -123,8 +123,8 @@ CREATE TABLE spell_effects (
     effect_class    integer,
     param           integer,
     disposition     integer,
-    target          text,
-    type            text,
+    target          integer,
+    type            integer,
     heal_modifier   real,
     rounds          integer,
     pip_num         integer,
@@ -323,8 +323,23 @@ CREATE TABLE statcaps (
 );
 
 
+CREATE TABLE deck (
+    id      integer primary key autoincrement,
+    name    text,
+    spell   text,
+    count   integer
+);
+
 """
 
+INIT_DECK_QUERY = """
+CREATE TABLE deck (
+    id      integer primary key autoincrement,
+    name    text,
+    spell   text,
+    count   integer
+);
+"""
 
 def convert_stat(stat):
     match stat.kind:
@@ -354,7 +369,7 @@ def _progress(_status, remaining, total):
     print(f'Copied {total-remaining} of {total} pages...')
 
 
-def build_db(state, items, mobs, pets, fish, stat_caps, out):
+def build_db(state, items, mobs, pets, fish, decks, stat_caps, out):
     mem = sqlite3.connect(":memory:")
     cursor = mem.cursor()
 
@@ -366,7 +381,21 @@ def build_db(state, items, mobs, pets, fish, stat_caps, out):
     insert_mobs(cursor, mobs)
     insert_pets(cursor, pets)
     insert_fish(cursor, fish)
+    insert_decks(cursor, decks)
     insert_statcaps(cursor, stat_caps)
+    mem.commit()
+
+    with out:
+        mem.backup(out, pages=1)
+
+    mem.close()
+    
+def build_deck_db(decks, out):
+    mem = sqlite3.connect(":memory:")
+    cursor = mem.cursor()
+
+    cursor.executescript(INIT_DECK_QUERY)
+    insert_decks(cursor, decks)
     mem.commit()
 
     with out:
@@ -462,8 +491,6 @@ def insert_spell_data(cursor: Cursor, cache: SpellCache):
         for effect in enumerate(spell.spell_effects):
             spell_effects.append(effect)
 
-
-
     cursor.executemany(
         "INSERT INTO spells(template_id,name,real_name,image,accuracy,energy,school,description,form,pve,pvp,levelreq,rank,x_pips,shadow_pips,fire_pips,ice_pips,storm_pips,myth_pips,life_pips,death_pips,balance_pips) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         spells
@@ -488,7 +515,7 @@ def insert_set_bonuses(cursor, cache: SetBonusCache):
         for bonus in bonus.bonuses:
             for stat in bonus.stats:
                 set_stats.append((template, bonus.activate_count, *convert_stat(stat)))
-
+    
     cursor.executemany(
         "INSERT INTO set_bonuses (id,name) VALUES (?,?)",
         set_bonuses
@@ -530,7 +557,7 @@ def insert_items(cursor, items):
 
         for stat in item.stats:
             stats.append((item.template_id, *convert_stat(stat)))
-
+    
     cursor.executemany(
         "INSERT INTO items(id,name,real_name,bonus_set,rarity,jewels,kind,extra_flags,equip_school,equip_level,min_pet_level,max_spells,max_copies,max_school_copies,deck_school,max_tcs,archmastery_points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         values
@@ -545,6 +572,7 @@ def insert_mobs(cursor, mobs):
     values = []
     stats = []
     items = []
+    spells = []
 
     for mob in mobs:
         values.append((
@@ -571,7 +599,13 @@ def insert_mobs(cursor, mobs):
 
         for item in mob.items:
             items.append((mob.template_id, item))
-
+            
+        for spell, count in mob.spells.items():
+            spells.append((
+                mob.real_name,
+                spell,
+                count
+            ))
 
     cursor.executemany(
         "INSERT INTO mobs(id,name,real_name,image,title,rank,hp,primary_school,secondary_school,stunnable,max_shadow,has_cheats,intelligence,selfishness,aggressiveness,monstro) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -584,6 +618,11 @@ def insert_mobs(cursor, mobs):
     cursor.executemany(
         """INSERT INTO mob_items(mob,item) VALUES (?,?)""",
         items
+    )
+    
+    cursor.executemany(
+        "INSERT INTO deck(id,name,spell,count) VALUES (NULL,?,?,?)",
+        spells
     )
 
 
@@ -652,9 +691,25 @@ def insert_fish(cursor, fishs):
             fish.incremental_bite_chance,
             fish.is_sentinel
         ))
-    
+        
     cursor.executemany(
         "INSERT INTO fish(id,name,real_name,rank,school,base_length,min_size,max_size,speed,bite_seconds,initial_bite_chance,incremental_bite_chance,is_sentinel) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        values
+    )
+    
+def insert_decks(cursor, decks):
+    values = []
+
+    for deck in decks:
+        for spell, count in deck.spells.items():
+            values.append((
+                deck.name,
+                spell,
+                count
+            ))
+        
+    cursor.executemany(
+        "INSERT INTO deck(id,name,spell,count) VALUES (NULL,?,?,?)",
         values
     )
 

@@ -4,6 +4,8 @@ from .state import State
 from .stat_rules import MultiPassengerStat
 from .utils import convert_rarity, SCHOOLS
 
+from katsuba.op import LazyObject # type: ignore
+
 ITEM_ADJECTIVES = (b"Hat", b"Robe", b"Shoes", b"Weapon", b"Athame", b"Amulet", b"Ring", b"Deck", b"Jewel", b"Mount")
 META_ADJECTIVES = (
     b"PetJewel",
@@ -26,22 +28,26 @@ META_ADJECTIVES = (
 
 
 def is_item_template(obj: dict) -> bool:
-    name = obj.get("m_displayName", b"")
-    adjectives = obj.get("m_adjectiveList", [])
+    try:
+        name = obj["m_displayName"]
+        adjectives = obj["m_adjectiveList"]
+        itemsetbonustmpid = obj["m_itemSetBonusTemplateID"]
+    except KeyError:
+        return False
 
-    return not name.startswith(b"ItemTestStrings") and obj.get("m_itemSetBonusTemplateID") is not None and any(a in adjectives for a in ITEM_ADJECTIVES)
+    return not name.startswith(b"ItemTestStrings") and itemsetbonustmpid is not None and any(a in adjectives for a in ITEM_ADJECTIVES)
 
 
 
 class Item:
-    def __init__(self, state: State, obj: dict):
+    def __init__(self, state: State, obj: LazyObject):
         self.template_id = obj["m_templateID"]
         self.name = state.make_lang_key(obj)
         if self.name.id is None:
             self.name.id = state.cache.add_entry(obj["m_objectName"], obj["m_objectName"].decode())
         self.real_name = obj["m_objectName"]
         self.set_bonus_id = state.add_set_bonus(obj["m_itemSetBonusTemplateID"])
-        self.rarity = convert_rarity(obj)
+        self.rarity = obj["m_rarity"]
 
         reqs = obj["m_equipRequirements"] or {}
         self.equip_reqs = parse_equip_reqs(reqs)

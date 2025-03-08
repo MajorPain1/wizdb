@@ -1,9 +1,10 @@
 from enum import Enum
-from kobold_py import KoboldError
 from struct import pack as pk
 from typing import List
 
-from .utils import SCHOOLS, SPELL_TYPES, GARDENING_TYPES, CANTRIP_TYPES, FISHING_TYPES, DISPOSITION
+from katsuba.utils import string_id # type: ignore
+
+from .utils import SCHOOLS, SPELL_TYPES, GARDENING_TYPES, CANTRIP_TYPES, FISHING_TYPES, DISPOSITION, op_to_dict
 
 
 def find_effects(d, effects, damage_types, num_rounds):
@@ -51,21 +52,21 @@ def remove_duplicates(lst):
     return result
 
 target_type = {
-    "enum ConditionalSpellEffectRequirement::RequirementTarget::RT_Caster": "Caster",
-    "enum ConditionalSpellEffectRequirement::RequirementTarget::RT_Target": "Target"
+    0: "Caster",
+    1: "Target"
 }
 
 operator_type = {
-    "enum Requirement::Operator::ROP_OR": "or",
-    "enum Requirement::Operator::ROP_AND": "and"
+    0: "and",
+    1: "or"
 }
 
-def parse_condition(obj):
+def parse_condition(obj, types):
     req_list = []
     neg_aura_added = False
     for req in obj["m_requirements"]:
-        match req["$__type"]:
-            case b"class ReqHangingCharm" | b"class ReqHangingWard" | b"class ReqHangingOverTime":
+        match types.name_for(req.type_hash):
+            case "class ReqHangingCharm" | "class ReqHangingWard" | "class ReqHangingOverTime":
                 count = req["m_minCount"]
                 applyNot = int(req["m_applyNOT"])
                 disposition = req["m_disposition"]
@@ -101,7 +102,7 @@ def parse_condition(obj):
                 req_string += f" on {target}"
                 req_list.append(req_string)
             
-            case b"class ReqHangingAura":
+            case "class ReqHangingAura":
                 applyNot = int(req["m_applyNOT"])
                 disposition = req["m_disposition"]
                 target = target_type[req["m_targetType"]]
@@ -124,29 +125,29 @@ def parse_condition(obj):
                     req_list.append(req_string)
                     neg_aura_added = True
             
-            case b"class ReqIsSchool":
+            case "class ReqIsSchool":
                 school = req["m_magicSchoolName"].decode("utf-8")
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" {target} School {school}")
             
-            case b"class ReqMinion":
+            case "class ReqMinion":
                 #minion_type = req["m_minionType"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" {target} has Minion")
             
-            case b'class ReqHangingEffectType':
+            case 'class ReqHangingEffectType':
                 applyNot = int(req["m_applyNOT"])
                 count = req["m_min_count"]
-                effect_type = req["m_effectType"].split("::")[-1][1:]
+                effect_type = req["m_effectType"]
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" {target} has {count} {effect_type}")
             
-            case b'class ReqCombatHealth':
+            case 'class ReqCombatHealth':
                 max_health = int(req["m_fMaxPercent"]*100)
                 min_health = int(req["m_fMinPercent"]*100)
                 applyNot = int(req["m_applyNOT"])
@@ -163,27 +164,27 @@ def parse_condition(obj):
                 
                 req_list.append(req_string)
             
-            case b'class ReqShadowPipCount':
+            case 'class ReqShadowPipCount':
                 min_pips = req["m_minPips"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" {min_pips} Shadow Pips on {target}")
             
-            case b'class ReqPipCount':
+            case 'class ReqPipCount':
                 min_pips = req["m_minPips"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" {min_pips} Pips on {target}")
             
-            case b'class ReqPvPCombat':
+            case 'class ReqPvPCombat':
                 applyNot = int(req["m_applyNOT"])
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" PvP")
             
-            case b'class ReqCombatStatus':
-                status = req["m_status"].split("::")[-1][1:]
+            case 'class ReqCombatStatus':
+                status = req["m_status"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
@@ -204,7 +205,7 @@ def parse_condition(obj):
     return ret
 
 def parse_convert_condition(obj):
-    input_effect = obj["m_hangingEffectType"].split("_")[-1]
+    input_effect = obj["m_hangingEffectType"]
     count = obj["m_maxEffectCount"]
     return f"Convert Up To {count} {input_effect}"
 
@@ -409,14 +410,14 @@ class SpellEffect:
         self.condition = ""
         self.sub_effects = []
     
-    def build_effect_tree(self, obj):
-        match obj["$__type"]:
-            case b"class SpellEffect":
+    def build_effect_tree(self, obj, types):
+        match types.name_for(obj.type_hash):
+            case "class SpellEffect":
                 self.effect_class = EffectClass.spell_effect
                 self.param = obj["m_effectParam"]
-                self.disposition = DISPOSITION.index(obj["m_disposition"])
-                self.target = obj["m_effectTarget"].split("::")[-1]
-                self.type = obj["m_effectType"].split("::")[-1]
+                self.disposition = obj["m_disposition"]
+                self.target = obj["m_effectTarget"]
+                self.type = obj["m_effectType"]
                 self.heal_modifier = obj["m_healModifier"]
                 self.rounds = obj["m_numRounds"]
                 self.pip_num = obj["m_pipNum"]
@@ -427,13 +428,13 @@ class SpellEffect:
                 else:
                     self.school = 0
                 
-            case b"class RandomSpellEffect":
+            case "class RandomSpellEffect":
                 self.effect_class = EffectClass.random_spell_effect
                 self.condition = "Random"
                 self.param = obj["m_effectParam"]
-                self.disposition = DISPOSITION.index(obj["m_disposition"])
-                self.target = obj["m_effectTarget"].split("::")[-1]
-                self.type = obj["m_effectType"].split("::")[-1]
+                self.disposition = obj["m_disposition"]
+                self.target = obj["m_effectTarget"]
+                self.type = obj["m_effectType"]
                 self.heal_modifier = obj["m_healModifier"]
                 self.rounds = obj["m_numRounds"]
                 self.pip_num = obj["m_pipNum"]
@@ -446,16 +447,16 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect)
+                    sub_effect_obj.build_effect_tree(sub_effect, types)
                     self.sub_effects.append(sub_effect_obj)
             
-            case b"class VariableSpellEffect":
+            case "class VariableSpellEffect":
                 self.effect_class = EffectClass.variable_spell_effect
                 self.condition = "Variable"
                 self.param = obj["m_effectParam"]
-                self.disposition = DISPOSITION.index(obj["m_disposition"])
-                self.target = obj["m_effectTarget"].split("::")[-1]
-                self.type = obj["m_effectType"].split("::")[-1]
+                self.disposition = obj["m_disposition"]
+                self.target = obj["m_effectTarget"]
+                self.type = obj["m_effectType"]
                 self.heal_modifier = obj["m_healModifier"]
                 self.rounds = obj["m_numRounds"]
                 self.pip_num = obj["m_pipNum"]
@@ -468,15 +469,15 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect)
+                    sub_effect_obj.build_effect_tree(sub_effect, types)
                     self.sub_effects.append(sub_effect_obj)
             
-            case b"class ConditionalSpellEffect":
+            case "class ConditionalSpellEffect":
                 self.effect_class = EffectClass.conditional_spell_effect
                 self.param = obj["m_effectParam"]
-                self.disposition = DISPOSITION.index(obj["m_disposition"])
-                self.target = obj["m_effectTarget"].split("::")[-1]
-                self.type = obj["m_effectType"].split("::")[-1]
+                self.disposition = obj["m_disposition"]
+                self.target = obj["m_effectTarget"]
+                self.type = obj["m_effectType"]
                 self.heal_modifier = obj["m_healModifier"]
                 self.rounds = obj["m_numRounds"]
                 self.pip_num = obj["m_pipNum"]
@@ -489,31 +490,31 @@ class SpellEffect:
                 
                 for element in obj["m_elements"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(element)
+                    sub_effect_obj.build_effect_tree(element, types)
                     self.sub_effects.append(sub_effect_obj)
             
-            case b"class ConditionalSpellElement":
+            case "class ConditionalSpellElement":
                 self.effect_class = EffectClass.conditional_spell_element
                 if obj["m_pReqs"] != None:
-                    self.condition = parse_condition(obj["m_pReqs"])
+                    self.condition = parse_condition(obj["m_pReqs"], types)
                 sub_effect = obj["m_pEffect"]
                 sub_effect_obj = SpellEffect(self.spell_id)
-                sub_effect_obj.build_effect_tree(sub_effect)
+                sub_effect_obj.build_effect_tree(sub_effect, types)
                 self.sub_effects.append(sub_effect_obj)
             
-            case b"class TargetCountSpellEffect":
+            case "class TargetCountSpellEffect":
                 self.effect_class = EffectClass.target_count_spell_effect
                 sub_effect = obj["m_effectLists"][0]
                 sub_effect_obj = SpellEffect(self.spell_id)
-                sub_effect_obj.build_effect_tree(sub_effect)
+                sub_effect_obj.build_effect_tree(sub_effect, types)
                 self.sub_effects.append(sub_effect_obj)
 
-            case b"class EffectListSpellEffect" | b"class ShadowSpellEffect":
+            case "class EffectListSpellEffect" | b"class ShadowSpellEffect":
                 self.effect_class = EffectClass.conditional_spell_effect
                 self.param = obj["m_effectParam"]
-                self.disposition = DISPOSITION.index(obj["m_disposition"])
-                self.target = obj["m_effectTarget"].split("::")[-1]
-                self.type = obj["m_effectType"].split("::")[-1]
+                self.disposition = obj["m_disposition"]
+                self.target = obj["m_effectTarget"]
+                self.type = obj["m_effectType"]
                 self.heal_modifier = obj["m_healModifier"]
                 self.rounds = obj["m_numRounds"]
                 self.pip_num = obj["m_pipNum"]
@@ -526,16 +527,16 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect)
+                    sub_effect_obj.build_effect_tree(sub_effect, types)
                     self.sub_effects.append(sub_effect_obj)
             
-            case b"class HangingConversionSpellEffect":
+            case "class HangingConversionSpellEffect":
                 self.effect_class = EffectClass.hanging_conversion_spell_effect
                 self.condition = parse_convert_condition(obj)
                 self.param = obj["m_effectParam"]
-                self.disposition = DISPOSITION.index(obj["m_disposition"])
-                self.target = obj["m_effectTarget"].split("::")[-1]
-                self.type = obj["m_effectType"].split("::")[-1]
+                self.disposition = obj["m_disposition"]
+                self.target = obj["m_effectTarget"]
+                self.type = obj["m_effectType"]
                 self.heal_modifier = obj["m_healModifier"]
                 self.rounds = obj["m_numRounds"]
                 self.pip_num = obj["m_pipNum"]
@@ -548,7 +549,7 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_outputEffect"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect)
+                    sub_effect_obj.build_effect_tree(sub_effect, types)
                     self.sub_effects.append(sub_effect_obj)
 
 class Spell:
@@ -576,11 +577,14 @@ class Spell:
         school = obj["m_sMagicSchoolName"]
         self.description = state.make_lang_key({"m_displayName": obj["m_description"]})
         if school == b"Gardening":
-            self.type_name = GARDENING_TYPES.index(obj["m_gardenSpellType"])
+            try:
+                self.type_name = obj["m_gardenSpellType"]
+            except KeyError:
+                self.type_name = SPELL_TYPES.index(obj["m_sTypeName"])
         elif school == b"Fishing":
-            self.type_name = FISHING_TYPES.index(obj["m_fishingSpellType"])
+            self.type_name = obj["m_fishingSpellType"]
         elif school == b"Cantrips":
-            self.type_name = CANTRIP_TYPES.index(obj["m_cantripsSpellType"])
+            self.type_name = obj["m_cantripsSpellType"]
         else:
             self.type_name = SPELL_TYPES.index(obj["m_sTypeName"])
         
@@ -602,12 +606,13 @@ class Spell:
         raw_effects = []
         raw_damage_types = []
         raw_num_rounds = []
-        find_effects(obj, raw_effects, raw_damage_types, raw_num_rounds)
+        dict_obj = op_to_dict(state.de.types, obj)
+        find_effects(dict_obj, raw_effects, raw_damage_types, raw_num_rounds)
         
         self.spell_effects = []
         for effect in obj["m_effects"]:
             effect_obj = SpellEffect(template_id)
-            effect_obj.build_effect_tree(effect)
+            effect_obj.build_effect_tree(effect, state.de.types)
             self.spell_effects.append(effect_obj)
             
         self.effect_params= raw_effects
@@ -626,11 +631,7 @@ class SpellCache:
             if not file.startswith("Spells/"):
                 continue
             
-            try:
-                value = state.de.deserialize_from_path((state.root_wad / file))
-            except KoboldError as Err:
-                print(Err)
-                continue
+            value = state.de.deserialize_from_path(file)
 
             spell = Spell(template, state, value)
             self.cache[template] = spell

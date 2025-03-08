@@ -1,4 +1,3 @@
-from kobold_py import KoboldError
 from struct import pack as pk
 from typing import List
 

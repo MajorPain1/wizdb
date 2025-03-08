@@ -30,29 +30,31 @@ def _is_level_req(req: dict) -> bool:
 
 
 def parse_equip_reqs(reqs: dict) -> set:
-    if not reqs.get("m_operator", "ROP_AND").endswith("ROP_AND"):
-        raise RuntimeError(f"No ROP_AND for {reqs}")
-    if reqs.get("m_applyNOT", False):
-        raise RuntimeError(f"applyNOT for {reqs}")
+    #if "m_operator" not in reqs or reqs["m_operator"] != 0:
+        #raise RuntimeError(f"No ROP_AND for {reqs}")
+    #if "m_applyNOT" in reqs and reqs["m_applyNOT"]:
+        #raise RuntimeError(f"applyNOT for {reqs}")
 
     conds = set()
 
-    for req in reqs.get("m_requirements", []):
-        if _is_school_req(req):
-            conds.add(SchoolRequirement(req.get("m_applyNOT", False), req["m_magicSchool"]))
+    if "m_requirements" in reqs:
+        for req in reqs["m_requirements"]:
+            if _is_school_req(req):
+                applyNOT = req["m_applyNOT"]
+                conds.add(SchoolRequirement(applyNOT, req["m_magicSchool"]))
 
-        elif _is_level_req(req):
-            school = req["m_magicSchool"]
-            op = req["m_operatorType"]
-            level = int(req["m_numericValue"])
-            op_not = req.get("m_applyNOT", False)
+            elif _is_level_req(req):
+                school = req["m_magicSchool"]
+                op = req["m_operatorType"]
+                level = int(req["m_numericValue"])
+                op_not = req.get("m_applyNOT", False)
 
-            #if school != b"":
-            #    conds.add(SchoolRequirement(op_not, school))
-            
-            if op.endswith("GREATER_THAN_EQ"):
-                conds.add(LevelRequirement(level))
-            else:
-                raise RuntimeError("Unknown level cond!")
+                #if school != b"":
+                #    conds.add(SchoolRequirement(op_not, school))
+                
+                if op == 3: # Greater Than or EQ
+                    conds.add(LevelRequirement(level))
+                else:
+                    raise RuntimeError("Unknown level cond!")
 
     return conds

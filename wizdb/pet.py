@@ -47,8 +47,11 @@ def make_string_id(string: str) -> int:
 
 
 def is_pet_template(obj: dict) -> bool:
-    adjectives = obj.get("m_adjectiveList", [])
-    name = obj.get("m_displayName", b"")
+    try:
+        adjectives = obj["m_adjectiveList"]
+        name = obj["m_displayName"]
+    except KeyError:
+        return False
 
     behaviors = obj["m_behaviors"]
     has_pet_behaviors = False
@@ -70,11 +73,10 @@ def translate_talents(state: State, talents: list):
 
     formatted_talents = []
     for talent in talents:
-        path = (state.root_wad / "TalentData" / f"{talent.decode()}.xml")
-        if not os.path.exists(path):
-            path = (state.root_wad / "TalentData" / "PetPowers" / f"{talent.decode()}.xml")
-        if not os.path.exists(path):
-            continue
+        talent_name: str = talent.decode().replace("Talent-ArmorPiercing-01", "Talent-ArmorPiercing-All01").replace("Talent-ArmorPiercing-02", "Talent-ArmorPiercing-All02")
+        path = f"TalentData/{talent_name}.xml"
+        if not path in state.de.archive:
+            path = f"TalentData/PetPowers/{talent.decode()}.xml"
 
         obj = state.de.deserialize_from_path(path)
         name = state.make_lang_key(obj)
@@ -98,7 +100,7 @@ class Pet:
             self.name.id = state.cache.add_entry(obj["m_objectName"], obj["m_objectName"].decode())
         self.real_name = obj["m_objectName"]
         self.set_bonus_id = state.add_set_bonus(obj["m_itemSetBonusTemplateID"])
-        self.rarity = convert_rarity(obj)
+        self.rarity = obj["m_rarity"]
 
         adj = obj["m_adjectiveList"]
         self.adjectives = 0

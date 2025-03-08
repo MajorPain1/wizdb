@@ -3,8 +3,11 @@ from .utils import SCHOOLS
 
 
 def is_mob_template(obj: dict) -> bool:
-    name = obj.get("m_displayName", b"")
-    aggro_sound = obj.get("m_aggroSound", b"NA")
+    try:
+        name = obj["m_displayName"]
+        aggro_sound = obj["m_aggroSound"]
+    except KeyError:
+        return False
 
     behaviors = obj["m_behaviors"]
     has_duel = False
@@ -16,16 +19,10 @@ def is_mob_template(obj: dict) -> bool:
             has_duel = True
 
 
-    return name and aggro_sound != b"NA" and has_duel
+    return has_duel and name
 
 
-mob_titles = {
-    "enum NPCBehaviorTemplate::TITLE_TYPE::Minion": "Minion",
-    "enum NPCBehaviorTemplate::TITLE_TYPE::Easy": "Easy",
-    "enum NPCBehaviorTemplate::TITLE_TYPE::Normal": "Normal",
-    "enum NPCBehaviorTemplate::TITLE_TYPE::Elite": "Elite",
-    "enum NPCBehaviorTemplate::TITLE_TYPE::Boss": "Boss",
-}
+mob_titles = {0: "Easy", 1: "Normal", 2: "Elite", 3: "Boss", 4: "Minion"}
 
 MONSTROLOGY_EXTRACTS = [
     b"Undead",          # No Prefix
@@ -64,6 +61,7 @@ class Mob:
         behaviors = obj["m_behaviors"]
         effect_behavior = None
         equipment_behavior = None
+        mobdeckbehavior = None
         for behavior in behaviors:
             if behavior == None:
                 continue
@@ -74,6 +72,9 @@ class Mob:
 
                 case b'WizardEquipmentBehavior':
                     equipment_behavior = behavior
+                
+                case b"MobDeckBehavior":
+                    mobdeckbehavior = behavior
 
         self.title = mob_titles[effect_behavior["m_mobTitle"]]
         self.stunnable = effect_behavior["m_bossMob"]
@@ -83,12 +84,22 @@ class Mob:
         self.rank = effect_behavior["m_nLevel"]
         self.hitpoints = effect_behavior["m_nStartingHealth"]
         self.primarySchool = SCHOOLS.index(effect_behavior["m_schoolOfFocus"])
-        self.secondarySchool = SCHOOLS.index(effect_behavior["m_secondarySchoolOfFocus"]) # May remove due to implications of dual schooling
+        self.secondarySchool = SCHOOLS.index(effect_behavior["m_secondarySchoolOfFocus"])
 
         self.max_shadow = effect_behavior["m_maxShadowPips"]
         self.has_cheats = effect_behavior["m_triggerList"] != b''
 
         self.items = equipment_behavior["m_itemList"]
+        
+        spell_list = mobdeckbehavior["m_spellList"]
+        spell_dict = {}
+        for spell in spell_list:
+            if spell in spell_dict.keys():
+                spell_dict[spell] += 1
+            else:
+                spell_dict[spell] = 1
+                
+        self.spells = spell_dict
 
         self.stats = []
         for effect in effect_behavior["m_baseEffects"]:

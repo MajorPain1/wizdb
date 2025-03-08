@@ -18,6 +18,17 @@
 # 5 - Power Pin
 # 6 - Shield Pin
 # 7 - Sword Pin
+sockets = {
+    0: "SQUARE",
+    1: "CIRCLE",
+    2: "TRIANGLE",
+    3: "TEAR",
+    4: "PET",
+    5: "PINSQUAREPIP",
+    6: "PINSQUARESHIELD",
+    7: "PINSQUARESWORD"
+}
+
 class JewelSockets:
     def __init__(self):
         self.value = 0
@@ -27,7 +38,7 @@ class JewelSockets:
         socket = (obj["m_bLockable"] << 0)
 
         # Encode the socket shape.
-        stype = obj["m_socketType"]
+        stype = sockets[obj["m_socketType"]]
         if stype.endswith("TEAR"):
             socket |= (0b001 << 1)
         elif stype.endswith("CIRCLE"):

@@ -132,4 +132,7 @@ dmypy.json
 *.wad
 Root/
 types.json
+deck_types.json
 items.db
+mobdeckbehaviortypes.json
+decks.db

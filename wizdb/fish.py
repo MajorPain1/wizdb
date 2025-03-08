@@ -3,7 +3,10 @@ from .utils import SCHOOLS
 
 
 def is_fish_template(obj: dict) -> bool:
-    name = obj.get("m_displayName", b"")
+    try:
+        name = obj["m_displayName"]
+    except KeyError:
+        return False
 
     behaviors = obj["m_behaviors"]
     has_fish_behaviors = False
@@ -15,7 +18,7 @@ def is_fish_template(obj: dict) -> bool:
             has_fish_behaviors = True
 
 
-    return has_fish_behaviors and name
+    return has_fish_behaviors
 
 class Fish:
     def __init__(self, state: State, obj: dict):

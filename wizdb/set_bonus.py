@@ -33,8 +33,7 @@ class SetBonusCache:
         if filename is None:
             return 0
 
-        file = state.root_wad / filename
-        value = state.de.deserialize_from_path(file)
+        value = state.de.deserialize_from_path(filename)
 
         self.cache[template] = SetBonus(state, value)
         return template

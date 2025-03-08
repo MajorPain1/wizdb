@@ -13,7 +13,7 @@ class TalentCache:
             if not file.startswith("TalentData/"):
                 continue
 
-            value = state.de.deserialize_from_path((state.root_wad / file))
+            value = state.de.deserialize_from_path(file)
 
             talent = Talent(template, state, value)
             self.cache[template] = talent

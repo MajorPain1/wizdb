@@ -1,9 +1,10 @@
 from pathlib import Path
 from struct import pack as pk
 
-from kobold_py import op as kobold
+from katsuba.op import * # type: ignore
 
 from .utils import fnv_1a
+from .deserializer import BinDeserializer
 
 class UnknownStat(Exception):
     pass
@@ -97,10 +98,10 @@ class MultiPassengerStat(Stat):
 
 
 class StatRules:
-    def __init__(self, de: kobold.BinaryDeserializer, canonical: Path, rule_dir: Path):
+    def __init__(self, de: BinDeserializer, canonical: Path, rule_dir: Path):
         self.tables = {}
 
-        for file in rule_dir.glob("*.xml"):
+        for file in de.archive.iter_glob(f"{rule_dir}/*.xml"):
             obj = de.deserialize_from_path(file)
             self.tables[obj["m_tableName"].decode()] = obj
 

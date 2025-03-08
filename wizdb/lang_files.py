@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 
 from .utils import fnv_1a
+from .deserializer import BinDeserializer
 
 
 # https://github.com/StarrFox/wizwalker/blob/master/wizwalker/file_readers/cache_handler.py#L114
@@ -25,9 +26,10 @@ def _parse_lang_file(file_data: bytes) -> dict:
 
 
 class LangCache:
-    def __init__(self, locale_dir: Path):
+    def __init__(self, de: BinDeserializer, locale_dir: Path):
         self.locale = locale_dir
         self.lookup = {}
+        self.de = de
         #for file in os.listdir(self.locale):
             #self.add_file((self.locale / file).with_suffix(".lang"))
 
@@ -41,15 +43,15 @@ class LangCache:
 
         if self.lookup.get(key_hash) is None:
             file, _ = key.decode().split("_", 1)
-            self.add_file((self.locale / file).with_suffix(".lang"))
+            self.add_file(f"{self.locale}/{file}.lang")
 
         if self.lookup.get(key_hash) is not None and self.lookup.get(key_hash) != "Natural Attack":
             return key_hash
         else:
             return None
 
-    def add_file(self, path: Path):
-        data = path.read_bytes()
+    def add_file(self, path: str):
+        data = self.de.archive[path]
         mapping = _parse_lang_file(data)
 
         for key, name in mapping.items():
