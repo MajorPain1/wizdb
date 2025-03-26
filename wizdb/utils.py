@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Iterator
 
 from katsuba.op import * # type: ignore
 
@@ -135,3 +136,11 @@ def fnv_1a(data) -> int:
         state *= 0x0000_0100_0000_01B3
         state &= 0xFFFF_FFFF_FFFF_FFFF
     return state >> 1
+
+def iter_lazyobject_keys(types: TypeList, obj: LazyObject):
+    iterd_lazyobject = []
+    for item in obj.items(types):
+        iterd_lazyobject.append(item[0])
+    
+    return iterd_lazyobject
+

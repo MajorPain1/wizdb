@@ -1,5 +1,6 @@
-from .utils import SCHOOLS
+from .utils import SCHOOLS, iter_lazyobject_keys
 
+from katsuba.op import LazyObject, TypeList # type: ignore
 
 class EquipRequirement:
     def __init__(self, id: int):
@@ -21,20 +22,15 @@ class SchoolRequirement(EquipRequirement):
         self.school = SCHOOLS.index(school) | (op_not << 31)
 
 
-def _is_school_req(req: dict) -> bool:
-    return len(req) == 4 and "m_magicSchool" in req
+def _is_school_req(req: LazyObject) -> bool:
+    return len(req) == 3
 
 
-def _is_level_req(req: dict) -> bool:
-    return len(req) == 6 and "m_operatorType" in req and "m_numericValue" in req
+def _is_level_req(req: LazyObject) -> bool:
+    return len(req) == 5
 
 
 def parse_equip_reqs(reqs: dict) -> set:
-    #if "m_operator" not in reqs or reqs["m_operator"] != 0:
-        #raise RuntimeError(f"No ROP_AND for {reqs}")
-    #if "m_applyNOT" in reqs and reqs["m_applyNOT"]:
-        #raise RuntimeError(f"applyNOT for {reqs}")
-
     conds = set()
 
     if "m_requirements" in reqs:
@@ -44,13 +40,8 @@ def parse_equip_reqs(reqs: dict) -> set:
                 conds.add(SchoolRequirement(applyNOT, req["m_magicSchool"]))
 
             elif _is_level_req(req):
-                school = req["m_magicSchool"]
                 op = req["m_operatorType"]
                 level = int(req["m_numericValue"])
-                op_not = req.get("m_applyNOT", False)
-
-                #if school != b"":
-                #    conds.add(SchoolRequirement(op_not, school))
                 
                 if op == 3: # Greater Than or EQ
                     conds.add(LevelRequirement(level))

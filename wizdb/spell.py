@@ -3,9 +3,195 @@ from struct import pack as pk
 from typing import List
 
 from katsuba.utils import string_id # type: ignore
+from katsuba.op import * # type: ignore
 
 from .utils import SCHOOLS, SPELL_TYPES, GARDENING_TYPES, CANTRIP_TYPES, FISHING_TYPES, DISPOSITION, op_to_dict
 
+class SpellEffects(Enum):
+    invalid_spell_effect = 0
+    damage = 1
+    damage_no_crit = 2
+    heal = 3
+    heal_percent = 4
+    set_heal_percent = 113
+    steal_health = 5
+    reduce_over_time = 6
+    detonate_over_time = 7
+    push_charm = 8
+    steal_charm = 9
+    push_ward = 10
+    steal_ward = 11
+    push_over_time = 12
+    steal_over_time = 13
+    remove_charm = 14
+    remove_ward = 15
+    remove_over_time = 16
+    remove_aura = 17
+    swap_all = 18
+    swap_charm = 19
+    swap_ward = 20
+    swap_over_time = 21
+    modify_incoming_damage = 22
+    modify_incoming_damage_flat = 119
+    maximum_incoming_damage = 23
+    modify_incoming_heal = 24
+    modify_incoming_heal_flat = 118
+    modify_incoming_damage_type = 25
+    modify_incoming_armor_piercing = 26
+    modify_outgoing_damage = 27
+    modify_outgoing_damage_flat = 121
+    modify_outgoing_heal = 28
+    modify_outgoing_heal_flat = 120
+    modify_outgoing_damage_type = 29
+    modify_outgoing_armor_piercing = 30
+    modify_outgoing_steal_health = 31
+    modify_incoming_steal_health = 32
+    bounce_next = 33
+    bounce_previous = 34
+    bounce_back = 35
+    bounce_all = 36
+    absorb_damage = 37
+    absorb_heal = 38
+    modify_accuracy = 39
+    dispel = 40
+    confusion = 41
+    cloaked_charm = 42
+    cloaked_ward = 43
+    stun_resist = 44
+    clue = 111
+    pip_conversion = 45
+    crit_boost = 46
+    crit_block = 47
+    polymorph = 48
+    delay_cast = 49
+    modify_card_cloak = 50
+    modify_card_damage = 51
+    modify_card_accuracy = 53
+    modify_card_mutation = 54
+    modify_card_rank = 55
+    modify_card_armor_piercing = 56
+    summon_creature = 65
+    teleport_player = 66
+    stun = 67
+    dampen = 68
+    reshuffle = 69
+    mind_control = 70
+    modify_pips = 71
+    modify_power_pips = 72
+    modify_shadow_pips = 73
+    modify_hate = 74
+    damage_over_time = 75
+    heal_over_time = 76
+    modify_power_pip_chance = 77
+    modify_rank = 78
+    stun_block = 79
+    reveal_cloak = 80
+    instant_kill = 81
+    after_life = 82
+    deferred_damage = 83
+    damage_per_total_pip_power = 84
+    modify_card_heal = 52
+    modify_card_charm = 57
+    modify_card_ward = 58
+    modify_card_outgoing_damage = 59
+    modify_card_outgoing_accuracy = 60
+    modify_card_outgoing_heal = 61
+    modify_card_outgoing_armor_piercing = 62
+    modify_card_incoming_damage = 63
+    modify_card_absorb_damage = 64
+    cloaked_ward_no_remove = 86
+    add_combat_trigger_list = 87
+    remove_combat_trigger_list = 88
+    backlash_damage = 89
+    modify_backlash = 90
+    intercept = 91
+    shadow_self = 92
+    shadow_creature = 93
+    modify_shadow_creature_level = 94
+    select_shadow_creature_attack_target = 95
+    shadow_decrement_turn = 96
+    crit_boost_school_specific = 97
+    spawn_creature = 98
+    un_polymorph = 99
+    power_pip_conversion = 100
+    protect_card_beneficial = 101
+    protect_card_harmful = 102
+    protect_beneficial = 103
+    protect_harmful = 104
+    divide_damage = 105
+    collect_essence = 106
+    kill_creature = 107
+    dispel_block = 108
+    confusion_block = 109
+    modify_pip_round_rate = 110
+    max_health_damage = 112
+    untargetable = 114
+    make_targetable = 115
+    force_targetable = 116
+    remove_stun_block = 117
+    exit_combat = 122
+    suspend_pips = 123
+    resume_pips = 124
+    auto_pass = 125
+    stop_auto_pass = 126
+    vanish = 127
+    stop_vanish = 128
+    max_health_heal = 129
+    heal_by_ward = 130
+    taunt = 131
+    pacify = 132
+    remove_target_restriction = 133
+    convert_hanging_effect = 134
+    add_spell_to_deck = 135
+    add_spell_to_hand = 136
+    modify_incoming_damage_over_time = 137
+    modify_incoming_heal_over_time = 138
+    modify_card_damage_by_rank = 139
+    push_converted_charm = 140
+    steal_converted_charm = 141
+    push_converted_ward = 142
+    steal_converted_ward = 143
+    push_converted_over_time = 144
+    steal_converted_over_time = 145
+    remove_converted_charm = 146
+    remove_converted_ward = 147
+    remove_converted_over_time = 148
+    modify_over_time_duration = 149
+    modify_school_pips = 150
+    
+class Disposition(Enum):
+    both = 0
+    beneficial = 1
+    harmful = 2
+
+class EffectTarget(Enum):
+    invalid_target = 0
+    spell = 1
+    specific_spells = 2
+    target_global = 3
+    enemy_team = 4
+    enemy_team_all_at_once = 5
+    friendly_team = 6
+    friendly_team_all_at_once = 7
+    enemy_single = 8
+    friendly_single = 9
+    minion = 10
+    friendly_minion = 17
+    self = 11
+    at_least_one_enemy = 13
+    preselected_enemy_single = 12
+    multi_target_enemy = 14
+    multi_target_friendly = 15
+    friendly_single_not_me = 16
+
+class EffectClass(Enum):
+    spell_effect = 0
+    random_spell_effect = 1
+    variable_spell_effect = 2
+    conditional_spell_effect = 3
+    conditional_spell_element = 4
+    target_count_spell_effect = 5
+    hanging_conversion_spell_effect = 6
 
 def find_effects(d, effects, damage_types, num_rounds):
     dictionaries_to_search = []
@@ -61,42 +247,43 @@ operator_type = {
     1: "or"
 }
 
-def parse_condition(obj, types):
+def parse_condition(obj: LazyObject, types: TypeList):
     req_list = []
     neg_aura_added = False
     for req in obj["m_requirements"]:
-        match types.name_for(req.type_hash):
+        req_class = types.name_for(req.type_hash)
+        match req_class:
             case "class ReqHangingCharm" | "class ReqHangingWard" | "class ReqHangingOverTime":
                 count = req["m_minCount"]
                 applyNot = int(req["m_applyNOT"])
-                disposition = req["m_disposition"]
+                disposition = int(req["m_disposition"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 
                 req_string = f"{operator}" + " not"*applyNot + f" {count}"
                 
-                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kHarmful":
-                    if req["$__type"] == b"class ReqHangingCharm":
+                if disposition == 2:
+                    if req_class == "class ReqHangingCharm":
                         req_string += " Weakness"
-                    if req["$__type"] == b"class ReqHangingWard":
+                    if req_class == "class ReqHangingWard":
                         req_string += " Trap"
-                    if req["$__type"] == b"class ReqHangingOverTime":
+                    if req_class == "class ReqHangingOverTime":
                         req_string += " DOT"
                         
-                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBeneficial":
-                    if req["$__type"] == b"class ReqHangingCharm":
+                if disposition == 1:
+                    if req_class == "class ReqHangingCharm":
                         req_string += " Blade"
-                    if req["$__type"] == b"class ReqHangingWard":
+                    if req_class == "class ReqHangingWard":
                         req_string += " Shield"
-                    if req["$__type"] == b"class ReqHangingOverTime":
+                    if req_class == "class ReqHangingOverTime":
                         req_string += " HOT"
                 
-                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBoth":
-                    if req["$__type"] == b"class ReqHangingCharm":
+                if disposition == 0:
+                    if req_class == "class ReqHangingCharm":
                         req_string += " Charm"
-                    if req["$__type"] == b"class ReqHangingWard":
+                    if req_class == "class ReqHangingWard":
                         req_string += " Ward"
-                    if req["$__type"] == b"class ReqHangingOverTime":
+                    if req_class == "class ReqHangingOverTime":
                         req_string += " OT"
                 
                 req_string += f" on {target}"
@@ -110,15 +297,15 @@ def parse_condition(obj, types):
                 
                 req_string = f"{operator}" + " not"*applyNot
                 
-                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kHarmful":
+                if disposition == 2:
                     req_string += " Negative Aura"
                     req_string += f" on {target}"
                 
-                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBeneficial":
+                if disposition == 1:
                     req_string += " Aura"
                     req_string += f" on {target}"
                 
-                if disposition == "enum SpellEffect::kHangingDisposition::SpellEffect::kBoth":
+                if disposition == 0:
                     req_string += " Global"
                 
                 if not neg_aura_added:
@@ -142,7 +329,7 @@ def parse_condition(obj, types):
             case 'class ReqHangingEffectType':
                 applyNot = int(req["m_applyNOT"])
                 count = req["m_min_count"]
-                effect_type = req["m_effectType"]
+                effect_type = SpellEffects(req["m_effectType"]).name.replace("_", " ").title()
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append(f"{operator}" + " not"*applyNot + f" {target} has {count} {effect_type}")
@@ -193,7 +380,7 @@ def parse_condition(obj, types):
     if len(req_list) == 0:
         return ""
     
-    first_req = req_list[0].replace("and ", "").replace("or ", "")
+    first_req = req_list[0].removeprefix("and ").removeprefix("or ")
     ret = f"If {first_req}"
     
     if len(req_list) == 1:
@@ -209,189 +396,6 @@ def parse_convert_condition(obj):
     count = obj["m_maxEffectCount"]
     return f"Convert Up To {count} {input_effect}"
 
-class Disposition(Enum):
-    both = 0
-    beneficial = 1
-    harmful = 2
-
-class EffectTarget(Enum):
-    invalid_target = 0
-    spell = 1
-    specific_spells = 2
-    target_global = 3
-    enemy_team = 4
-    enemy_team_all_at_once = 5
-    friendly_team = 6
-    friendly_team_all_at_once = 7
-    enemy_single = 8
-    friendly_single = 9
-    minion = 10
-    friendly_minion = 17
-    self = 11
-    at_least_one_enemy = 13
-    preselected_enemy_single = 12
-    multi_target_enemy = 14
-    multi_target_friendly = 15
-    friendly_single_not_me = 16
-
-class SpellEffects(Enum):
-    invalid_spell_effect = 0
-    damage = 1
-    damage_no_crit = 2
-    heal = 3
-    heal_percent = 4
-    set_heal_percent = 111
-    steal_health = 5
-    reduce_over_time = 6
-    detonate_over_time = 7
-    push_charm = 8
-    steal_charm = 9
-    push_ward = 10
-    steal_ward = 11
-    push_over_time = 12
-    steal_over_time = 13
-    remove_charm = 14
-    remove_ward = 15
-    remove_over_time = 16
-    remove_aura = 17
-    swap_all = 18
-    swap_charm = 19
-    swap_ward = 20
-    swap_over_time = 21
-    modify_incoming_damage = 22
-    modify_incoming_damage_flat = 117
-    maximum_incoming_damage = 23
-    modify_incoming_heal = 24
-    modify_incoming_heal_flat = 116
-    modify_incoming_damage_type = 25
-    modify_incoming_armor_piercing = 26
-    modify_outgoing_damage = 27
-    modify_outgoing_damage_flat = 119
-    modify_outgoing_heal = 28
-    modify_outgoing_heal_flat = 118
-    modify_outgoing_damage_type = 29
-    modify_outgoing_armor_piercing = 30
-    bounce_next = 31
-    bounce_previous = 32
-    bounce_back = 33
-    bounce_all = 34
-    absorb_damage = 35
-    absorb_heal = 36
-    modify_accuracy = 37
-    dispel = 38
-    confusion = 39
-    cloaked_charm = 40
-    cloaked_ward = 41
-    stun_resist = 42
-    clue = 109
-    pip_conversion = 43
-    crit_boost = 44
-    crit_block = 45
-    polymorph = 46
-    delay_cast = 47
-    modify_card_cloak = 48
-    modify_card_damage = 49
-    modify_card_accuracy = 51
-    modify_card_mutation = 52
-    modify_card_rank = 53
-    modify_card_armor_piercing = 54
-    summon_creature = 63
-    teleport_player = 64
-    stun = 65
-    dampen = 66
-    reshuffle = 67
-    mind_control = 68
-    modify_pips = 69
-    modify_power_pips = 70
-    modify_shadow_pips = 71
-    modify_hate = 72
-    damage_over_time = 73
-    heal_over_time = 74
-    modify_power_pip_chance = 75
-    modify_rank = 76
-    stun_block = 77
-    reveal_cloak = 78
-    instant_kill = 79
-    after_life = 80
-    deferred_damage = 81
-    damage_per_total_pip_power = 82
-    modify_card_heal = 50
-    modify_card_charm = 55
-    modify_card_warn = 56
-    modify_card_outgoing_damage = 57
-    modify_card_outgoing_accuracy = 58
-    modify_card_outgoing_heal = 59
-    modify_card_outgoing_armor_piercing = 60
-    modify_card_incoming_damage = 61
-    modify_card_absorb_damage = 62
-    cloaked_ward_no_remove = 84
-    add_combat_trigger_list = 85
-    remove_combat_trigger_list = 86
-    backlash_damage = 87
-    modify_backlash = 88
-    intercept = 89
-    shadow_self = 90
-    shadow_creature = 91
-    modify_shadow_creature_level = 92
-    select_shadow_creature_attack_target = 93
-    shadow_decrement_turn = 94
-    crit_boost_school_specific = 95
-    spawn_creature = 96
-    unpolymorph = 97
-    power_pip_conversion = 98
-    protect_card_beneficial = 99
-    protect_card_harmful = 100
-    protect_beneficial = 101
-    protect_harmful = 102
-    divide_damage = 103
-    collect_essence = 104
-    kill_creature = 105
-    dispel_block = 106
-    confusion_block = 107
-    modify_pip_round_rate = 108
-    max_health_damage = 110
-    untargetable = 112
-    make_targetable = 113
-    force_targetable = 114
-    remove_stun_block = 115
-    exit_combat = 120
-    suspend_pips = 121
-    resume_pips = 122
-    auto_pass = 123
-    stop_auto_pass = 124
-    vanish = 125
-    stop_vanish = 126
-    max_health_heal = 127
-    heal_by_ward = 128
-    taunt = 129
-    pacify = 130
-    remove_target_restriction = 131
-    convert_hanging_effect = 132
-    add_spell_to_deck = 133
-    add_spell_to_hand = 134
-    modify_incoming_damage_over_time = 135
-    modify_incoming_heal_over_time = 136
-    modify_card_damage_by_rank = 137
-    push_converted_charm = 138
-    steal_converted_charm = 139
-    push_converted_ward = 140
-    steal_converted_ward = 141
-    push_converted_over_time = 142
-    steal_converted_over_time = 143
-    remove_converted_charm = 144
-    remove_converted_ward = 145
-    remove_converted_over_time = 146
-    modify_over_time_duration = 147
-
-class EffectClass(Enum):
-    spell_effect = 0
-    random_spell_effect = 1
-    variable_spell_effect = 2
-    conditional_spell_effect = 3
-    conditional_spell_element = 4
-    target_count_spell_effect = 5
-    hanging_conversion_spell_effect = 6
-
 
 class SpellEffect:
     def __init__(self, spell_id):
@@ -399,8 +403,8 @@ class SpellEffect:
         self.effect_class = EffectClass.spell_effect
         self.param = -1
         self.disposition = 0
-        self.target = ""
-        self.type = ""
+        self.target = 0
+        self.type = 0
         self.heal_modifier = 1.0
         self.rounds = 0
         self.pip_num = 0
@@ -410,7 +414,7 @@ class SpellEffect:
         self.condition = ""
         self.sub_effects = []
     
-    def build_effect_tree(self, obj, types):
+    def build_effect_tree(self, obj: LazyObject, types: TypeList):
         match types.name_for(obj.type_hash):
             case "class SpellEffect":
                 self.effect_class = EffectClass.spell_effect
@@ -509,7 +513,7 @@ class SpellEffect:
                 sub_effect_obj.build_effect_tree(sub_effect, types)
                 self.sub_effects.append(sub_effect_obj)
 
-            case "class EffectListSpellEffect" | b"class ShadowSpellEffect":
+            case "class EffectListSpellEffect" | "class ShadowSpellEffect":
                 self.effect_class = EffectClass.conditional_spell_effect
                 self.param = obj["m_effectParam"]
                 self.disposition = obj["m_disposition"]

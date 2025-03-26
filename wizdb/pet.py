@@ -6,6 +6,7 @@ from .requirements import parse_equip_reqs
 from .state import State
 from .stat_rules import MultiPassengerStat
 from .utils import convert_rarity, SCHOOLS
+from .spell import SpellCache
 
 ADJECTIVES = (
     b"FLAG_NoAuction",
