@@ -193,6 +193,13 @@ class EffectClass(Enum):
     target_count_spell_effect = 5
     hanging_conversion_spell_effect = 6
 
+class HangingEffect(Enum):
+    any = 0
+    ward = 1
+    charm = 2
+    overtime = 3
+    specific = 4
+
 def find_effects(d, effects, damage_types, num_rounds):
     dictionaries_to_search = []
     for k, v in d.items():
@@ -287,7 +294,7 @@ def parse_condition(obj: LazyObject, types: TypeList):
                         req_string += " OT"
                 
                 req_string += f" on {target}"
-                req_list.append(req_string)
+                req_list.append((req.type_hash, req_string))
             
             case "class ReqHangingAura":
                 applyNot = int(req["m_applyNOT"])
@@ -309,7 +316,7 @@ def parse_condition(obj: LazyObject, types: TypeList):
                     req_string += " Global"
                 
                 if not neg_aura_added:
-                    req_list.append(req_string)
+                    req_list.append((1, req_string))
                     neg_aura_added = True
             
             case "class ReqIsSchool":
@@ -317,14 +324,14 @@ def parse_condition(obj: LazyObject, types: TypeList):
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" {target} School {school}")
+                req_list.append((0, f"{operator}" + " not"*applyNot + f" {target} School {school}"))
             
             case "class ReqMinion":
                 #minion_type = req["m_minionType"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" {target} has Minion")
+                req_list.append((2, f"{operator}" + " not"*applyNot + f" {target} has Minion"))
             
             case 'class ReqHangingEffectType':
                 applyNot = int(req["m_applyNOT"])
@@ -332,7 +339,7 @@ def parse_condition(obj: LazyObject, types: TypeList):
                 effect_type = SpellEffects(req["m_effectType"]).name.replace("_", " ").title()
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" {target} has {count} {effect_type}")
+                req_list.append((3, f"{operator}" + " not"*applyNot + f" {target} has {count} {effect_type}"))
             
             case 'class ReqCombatHealth':
                 max_health = int(req["m_fMaxPercent"]*100)
@@ -349,52 +356,90 @@ def parse_condition(obj: LazyObject, types: TypeList):
                 else:
                     req_string += f"between {min_health}% and {max_health}% HP"
                 
-                req_list.append(req_string)
+                req_list.append((4, req_string))
             
             case 'class ReqShadowPipCount':
                 min_pips = req["m_minPips"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" {min_pips} Shadow Pips on {target}")
+                req_list.append((5, f"{operator}" + " not"*applyNot + f" {min_pips} Shadow Pips on {target}"))
             
             case 'class ReqPipCount':
                 min_pips = req["m_minPips"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" {min_pips} Pips on {target}")
+                req_list.append((6, f"{operator}" + " not"*applyNot + f" {min_pips} Pips on {target}"))
             
             case 'class ReqPvPCombat':
                 applyNot = int(req["m_applyNOT"])
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" PvP")
+                req_list.append((7, f"{operator}" + " not"*applyNot + f" PvP"))
             
             case 'class ReqCombatStatus':
                 status = req["m_status"]
                 applyNot = int(req["m_applyNOT"])
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
-                req_list.append(f"{operator}" + " not"*applyNot + f" {target} {status}")
+                req_list.append((8, f"{operator}" + " not"*applyNot + f" {target} {status}"))
     
     if len(req_list) == 0:
         return ""
     
-    first_req = req_list[0].removeprefix("and ").removeprefix("or ")
+    sorted_req_list = sorted(req_list, key=lambda x: x[0])
+    req_string_list = [x[1] for x in sorted_req_list]
+    
+    first_req = req_string_list[0].removeprefix("and ").removeprefix("or ")
     ret = f"If {first_req}"
     
-    if len(req_list) == 1:
+    if len(req_string_list) == 1:
         return ret
     
-    for req in req_list[1:]:
+    for req in req_string_list[1:]:
         ret += f" {req}"
     
     return ret
 
 def parse_convert_condition(obj):
-    input_effect = obj["m_hangingEffectType"]
+    disposition = obj["m_disposition"]
+    match obj["m_hangingEffectType"]:
+        case 0:
+            input_effect = "Any"
+        case 1:
+            if disposition in [0, 1]:
+                input_effect = "Shield"
+            else:
+                input_effect = "Trap"
+        case 2:
+            if disposition in [0, 1]:
+                input_effect = "Blade"
+            else:
+                input_effect = "Weakness"
+        case 3:
+            if disposition in [0, 1]:
+                input_effect = "HOT"
+            else:
+                input_effect = "DOT"
+        case 4:
+            input_effect = ""
+            for effect in obj["m_specificEffectTypes"]:
+                match effect:
+                    case 22: # Shield/Trap
+                        if disposition in [0, 1]:
+                            input_effect += "Shield, "
+                        else:
+                            input_effect += "Trap, "
+                    case 27: # Blade/Weak
+                        if disposition in [0, 1]:
+                            input_effect += "Blade, "
+                        else:
+                            input_effect += "Weakness, "
+            
+            input_effect = input_effect.removesuffix(", ")
+        
     count = obj["m_maxEffectCount"]
-    return f"Convert Up To {count} {input_effect}"
+    return f"Convert {count} {input_effect}"
 
 
 class SpellEffect:
@@ -414,7 +459,7 @@ class SpellEffect:
         self.condition = ""
         self.sub_effects = []
     
-    def build_effect_tree(self, obj: LazyObject, types: TypeList):
+    def build_effect_tree(self, obj: LazyObject, types: TypeList, conversion_disposition=-1, conversion_percentage=-1.0):
         match types.name_for(obj.type_hash):
             case "class SpellEffect":
                 self.effect_class = EffectClass.spell_effect
@@ -553,8 +598,14 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_outputEffect"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect, types)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, conversion_disposition=self.disposition, conversion_percentage=obj["m_sourceEffectValuePercent"]*100)
                     self.sub_effects.append(sub_effect_obj)
+        
+        if self.disposition == 0 and conversion_disposition != -1:
+            self.disposition = conversion_disposition
+        
+        if self.param == -1 and conversion_percentage != -1.0:
+            self.param = conversion_percentage
 
 class Spell:
     def __init__(self, template_id: int, state, obj: dict):
