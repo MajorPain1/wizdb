@@ -149,7 +149,7 @@ class Pet:
                             if level["m_powerCardName3"] != b'':
                                 self.cards.append(level["m_powerCardName3"])
                         
-                        if len(self.cards) == 1 and num_cards > 0:
+                        if num_cards > 0:
                             self.cards = [x for item in self.cards for x in repeat(item, num_cards)]
 
                 

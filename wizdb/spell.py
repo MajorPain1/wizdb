@@ -203,8 +203,7 @@ class HangingEffect(Enum):
 def find_effects(d, effects, damage_types, num_rounds):
     dictionaries_to_search = []
     for k, v in d.items():
-        if not "m_effectList" in d and not "m_elements" in d and not "m_outputEffect" in d:
-            
+        if d["$__type"] == "class SpellEffect":
             match k:
                 case "m_effectParam":
                     effects.append(v)
@@ -221,12 +220,8 @@ def find_effects(d, effects, damage_types, num_rounds):
             case dict():
                 dictionaries_to_search.append(v)
             case list():
-                rank = -1
-                if len(v) > 0 and isinstance(v[0], dict) and "m_rank" in v[0] and (k == "m_outputEffect" or k == "m_elements"):
-                    rank = v[0]["m_rank"]
-
                 for item in v:
-                    if isinstance(item, dict) and (rank == -1 or item["m_rank"] == rank):
+                    if isinstance(item, dict):
                         dictionaries_to_search.append(item)
                         
     for dictionary in dictionaries_to_search:

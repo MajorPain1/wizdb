@@ -141,7 +141,7 @@ class StatRules:
             return SpellStat.extract(state, obj)
         elif name == "ProvideCombatTrigger":
             return MayCastStat.extract(state, obj)
-        elif name == "SpeedBuff":
+        elif name == "SpeedBuff" or name == "SpeedBuffNoStack":
             return SpeedStat.extract(obj)
         elif name in ("ShieldBuff", "Transformation", "BlackhawkFireJewelEffect01", "BlackhawkIceJewelEffect01", "BlackhawkStormJewelEffect01", "BlackhawkBalanceJewelEffect01", "BlackhawkDeathJewelEffect01", "BlackhawkLifeJewelEffect01", "BlackhawkMythJewelEffect01", "BlackhawkAllSchoolsJewelEffect01", "MorganthJewelEffect", "MeaninglessDOT", "HitpointBuff", "TwentyPercentPowerPips", "SixtyPercentPowerPips", "ProvideFourFireElves", "ProvideNineWandFire1", "ProvideNineWandIce1", "ProvideNineWandStorm1", "ProvideNineWandMyth1", "PostCombatEffect", "PostCombatEffect2", "ProvideSpell", "Invisible", "NonPersistentInvisible", "NonPersistentInvisibleToAll", "StartingPips", "CombatSpeed", "RecallHome", "CantGoHome", "CantTransfer", "RideState", "CantPlayPVP"):
             # TODO: Chances are we may actually need to handle some of this.

@@ -11,7 +11,7 @@ class State:
     def __init__(self, root_wad: Path, types: Path):
         self.root_wad = root_wad
         self.de = BinDeserializer(root_wad, types)
-        self.cache = LangCache(self.de, "Locale/English")
+        self.cache = LangCache(self.de, "Locale/en-US")
         self.stat_rules = StatRules(
             self.de,
             "GameEffectData/CanonicalStatEffects.xml",
