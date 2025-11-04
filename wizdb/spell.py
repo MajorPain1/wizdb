@@ -158,6 +158,7 @@ class SpellEffects(Enum):
     remove_converted_over_time = 148
     modify_over_time_duration = 149
     modify_school_pips = 150
+    shadow_pact = 151
     
 class Disposition(Enum):
     both = 0
@@ -192,6 +193,7 @@ class EffectClass(Enum):
     conditional_spell_element = 4
     target_count_spell_effect = 5
     hanging_conversion_spell_effect = 6
+    shadow_pact_spell_effect = 7
 
 class HangingEffect(Enum):
     any = 0
@@ -199,6 +201,15 @@ class HangingEffect(Enum):
     charm = 2
     overtime = 3
     specific = 4
+    
+class PactEffectKind(Enum):
+    ward = 0
+    jinx = 1
+    charm = 2
+    curse = 3
+    DOT = 4
+    HOT = 5
+
 
 def find_effects(d, effects, damage_types, num_rounds):
     dictionaries_to_search = []
@@ -320,6 +331,15 @@ def parse_condition(obj: LazyObject, types: TypeList):
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append((0, f"{operator}" + " not"*applyNot + f" {target} School {school}"))
+            
+            case "class ReqIsSecondarySchool":
+                school = req["m_magicSchoolName"].decode("utf-8")
+                if school == "":
+                    school = "None"
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType"]]
+                operator = operator_type[req["m_operator"]]
+                req_list.append((0, f"{operator}" + " not"*applyNot + f" {target} Secondary School {school}"))
             
             case "class ReqMinion":
                 #minion_type = req["m_minionType"]
@@ -452,9 +472,11 @@ class SpellEffect:
         self.rank = 0
         self.school = 0
         self.condition = ""
+        self.num_targets = 0
         self.sub_effects = []
     
-    def build_effect_tree(self, obj: LazyObject, types: TypeList, conversion_disposition=-1, conversion_percentage=-1.0):
+    def build_effect_tree(self, obj: LazyObject, types: TypeList, conversion_disposition=-1, conversion_percentage=-1.0, num_targets=0):
+        self.num_targets = num_targets
         match types.name_for(obj.type_hash):
             case "class SpellEffect":
                 self.effect_class = EffectClass.spell_effect
@@ -491,7 +513,7 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect, types)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, num_targets=num_targets)
                     self.sub_effects.append(sub_effect_obj)
             
             case "class VariableSpellEffect":
@@ -513,7 +535,7 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect, types)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, num_targets=num_targets)
                     self.sub_effects.append(sub_effect_obj)
             
             case "class ConditionalSpellEffect":
@@ -534,7 +556,7 @@ class SpellEffect:
                 
                 for element in obj["m_elements"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(element, types)
+                    sub_effect_obj.build_effect_tree(element, types, num_targets=num_targets)
                     self.sub_effects.append(sub_effect_obj)
             
             case "class ConditionalSpellElement":
@@ -543,15 +565,15 @@ class SpellEffect:
                     self.condition = parse_condition(obj["m_pReqs"], types)
                 sub_effect = obj["m_pEffect"]
                 sub_effect_obj = SpellEffect(self.spell_id)
-                sub_effect_obj.build_effect_tree(sub_effect, types)
+                sub_effect_obj.build_effect_tree(sub_effect, types, num_targets=num_targets)
                 self.sub_effects.append(sub_effect_obj)
             
             case "class TargetCountSpellEffect":
                 self.effect_class = EffectClass.target_count_spell_effect
-                sub_effect = obj["m_effectLists"][0]
-                sub_effect_obj = SpellEffect(self.spell_id)
-                sub_effect_obj.build_effect_tree(sub_effect, types)
-                self.sub_effects.append(sub_effect_obj)
+                for i, sub_effect in enumerate(obj["m_effectLists"]):
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, num_targets=(i+1))
+                    self.sub_effects.append(sub_effect_obj)
 
             case "class EffectListSpellEffect" | "class ShadowSpellEffect":
                 self.effect_class = EffectClass.conditional_spell_effect
@@ -571,7 +593,7 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_effectList"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect, types)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, num_targets=num_targets)
                     self.sub_effects.append(sub_effect_obj)
             
             case "class HangingConversionSpellEffect":
@@ -593,7 +615,19 @@ class SpellEffect:
                 
                 for sub_effect in obj["m_outputEffect"]:
                     sub_effect_obj = SpellEffect(self.spell_id)
-                    sub_effect_obj.build_effect_tree(sub_effect, types, conversion_disposition=self.disposition, conversion_percentage=obj["m_sourceEffectValuePercent"]*100)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, conversion_disposition=self.disposition, conversion_percentage=obj["m_sourceEffectValuePercent"]*100, num_targets=num_targets)
+                    self.sub_effects.append(sub_effect_obj)
+            
+            case "class ShadowPactSpellEffect":
+                self.effect_class = EffectClass.shadow_pact_spell_effect
+                self.type = 151
+                self.target = obj["m_effectTarget"]
+                self.rounds = obj["m_numRounds"]
+                self.param = obj["m_pactEffectKind"]
+                
+                for sub_effect in obj["m_effectList"]:
+                    sub_effect_obj = SpellEffect(self.spell_id)
+                    sub_effect_obj.build_effect_tree(sub_effect, types, num_targets=num_targets)
                     self.sub_effects.append(sub_effect_obj)
         
         if self.disposition == 0 and conversion_disposition != -1:

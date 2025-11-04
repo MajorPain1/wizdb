@@ -131,6 +131,7 @@ CREATE TABLE spell_effects (
     protected       bool,
     rank            integer,
     school          integer,
+    num_targets     integer,
     condition       text,
     
     foreign key(spell_id) references spells(id)
@@ -420,8 +421,8 @@ def insert_effect(cursor: Cursor, i, effect, parent_id):
         """
         INSERT INTO spell_effects (
             spell_id, parent_id, idx, effect_class, param, disposition, target, 
-            type, heal_modifier, rounds, pip_num, protected, rank, school, condition
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            type, heal_modifier, rounds, pip_num, protected, rank, school, num_targets, condition
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             effect.spell_id,
@@ -438,6 +439,7 @@ def insert_effect(cursor: Cursor, i, effect, parent_id):
             effect.protected,
             effect.rank,
             effect.school,
+            effect.num_targets,
             effect.condition,
         )
     )
