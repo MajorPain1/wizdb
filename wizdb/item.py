@@ -8,7 +8,14 @@ from katsuba.op import LazyObject # type: ignore
 
 ITEM_ADJECTIVES = (b"Hat", b"Robe", b"Shoes", b"Weapon", b"Athame", b"Amulet", b"Ring", b"Deck", b"Jewel", b"Mount")
 META_ADJECTIVES = (
-    b"PetJewel",
+    b"SquareJewel", 
+    b"CircleJewel", 
+    b"PetJewel", 
+    b"TriangleJewel", 
+    b"TearJewel", 
+    b"PinSquareShield", 
+    b"PinSquareSword", 
+    b"PinSquarePip",
     b"FLAG_NoAuction",
     b"FLAG_CrownsOnly",
     b"FLAG_NoGift",
