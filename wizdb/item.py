@@ -50,7 +50,7 @@ class Item:
         self.rarity = obj["m_rarity"]
 
         reqs = obj["m_equipRequirements"] or {}
-        self.equip_reqs = parse_equip_reqs(reqs)
+        self.equip_reqs = parse_equip_reqs(reqs, state.de.types)
 
         self.jewel_sockets = JewelSockets()
 

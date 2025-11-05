@@ -45,6 +45,7 @@ CREATE TABLE items (
     extra_flags        integer,
 
     equip_school       integer,
+    equip_secondary    integer,
     equip_level        integer,
 
     -- When the PetJewel bit in extra_flags is set.
@@ -357,13 +358,15 @@ def convert_stat(stat):
 def convert_equip_reqs(reqs):
     level = 0
     school = 0
+    secondary = 0
 
     for req in reqs:
         match req.id:
             case 1: level = req.level
             case 2: school = req.school
+            case 3: secondary = req.school
 
-    return school, level
+    return school, secondary, level
 
 
 def _progress(_status, remaining, total):
@@ -561,7 +564,7 @@ def insert_items(cursor, items):
             stats.append((item.template_id, *convert_stat(stat)))
     
     cursor.executemany(
-        "INSERT INTO items(id,name,real_name,bonus_set,rarity,jewels,kind,extra_flags,equip_school,equip_level,min_pet_level,max_spells,max_copies,max_school_copies,deck_school,max_tcs,archmastery_points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO items(id,name,real_name,bonus_set,rarity,jewels,kind,extra_flags,equip_school,equip_secondary,equip_level,min_pet_level,max_spells,max_copies,max_school_copies,deck_school,max_tcs,archmastery_points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         values
     )
     cursor.executemany(

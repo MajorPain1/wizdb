@@ -20,26 +20,29 @@ class SchoolRequirement(EquipRequirement):
     def __init__(self, op_not: bool, school: bytes):
         super().__init__(2)
         self.school = SCHOOLS.index(school) | (op_not << 31)
+        
+        
+class SecondarySchoolRequirement(EquipRequirement):
+    def __init__(self, op_not: bool, school: bytes):
+        super().__init__(3)
+        self.school = SCHOOLS.index(school) | (op_not << 31)
 
 
-def _is_school_req(req: LazyObject) -> bool:
-    return len(req) == 3
-
-
-def _is_level_req(req: LazyObject) -> bool:
-    return len(req) == 5
-
-
-def parse_equip_reqs(reqs: dict) -> set:
+def parse_equip_reqs(reqs: dict, types: TypeList) -> set:
     conds = set()
 
     if "m_requirements" in reqs:
         for req in reqs["m_requirements"]:
-            if _is_school_req(req):
+            req_class = types.name_for(req.type_hash)
+            if req_class == "class ReqSchoolOfFocus":
                 applyNOT = req["m_applyNOT"]
                 conds.add(SchoolRequirement(applyNOT, req["m_magicSchool"]))
+            
+            elif req_class == "class ReqHasSecondarySchool":
+                applyNOT = req["m_applyNOT"]
+                conds.add(SecondarySchoolRequirement(applyNOT, req["m_secondarySchool"]))
 
-            elif _is_level_req(req):
+            elif req_class == "class ReqMagicLevel":
                 op = req["m_operatorType"]
                 level = int(req["m_numericValue"])
                 
