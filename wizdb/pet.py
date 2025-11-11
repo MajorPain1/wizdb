@@ -9,6 +9,14 @@ from .utils import convert_rarity, SCHOOLS
 from .spell import SpellCache
 
 ADJECTIVES = (
+    b"SquareJewel", 
+    b"CircleJewel", 
+    b"PetJewel", 
+    b"TriangleJewel", 
+    b"TearJewel", 
+    b"PinSquareShield", 
+    b"PinSquareSword", 
+    b"PinSquarePip",
     b"FLAG_NoAuction",
     b"FLAG_CrownsOnly",
     b"FLAG_NoGift",

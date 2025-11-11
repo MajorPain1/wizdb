@@ -643,7 +643,7 @@ def insert_pets(cursor, pets):
             pet.real_name,
             pet.set_bonus_id,
             pet.rarity,
-            pet.adjectives,
+            pet.adjectives >> 16,
             pet.wow_factor,
             pet.exclusive,
             pet.school,
