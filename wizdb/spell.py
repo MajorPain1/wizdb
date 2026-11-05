@@ -179,6 +179,9 @@ class EffectTarget(Enum):
     friendly_single = 9
     minion = 10
     friendly_minion = 17
+    enemy_minion = 18
+    caster_minion = 19
+    target_minion = 20
     self = 11
     at_least_one_enemy = 13
     preselected_enemy_single = 12
@@ -253,7 +256,9 @@ def remove_duplicates(lst):
 
 target_type = {
     0: "Caster",
-    1: "Target"
+    1: "Target",
+    2: "Caster Minion",
+    3: "Target Minion",
 }
 
 operator_type = {
@@ -399,6 +404,13 @@ def parse_condition(obj: LazyObject, types: TypeList):
                 target = target_type[req["m_targetType"]]
                 operator = operator_type[req["m_operator"]]
                 req_list.append((8, f"{operator}" + " not"*applyNot + f" {target} {status}"))
+            
+            case "class ReqMinionHealth":
+                applyNot = int(req["m_applyNOT"])
+                target = target_type[req["m_targetType2"]]
+                operator = operator_type[req["m_operator"]]
+                numericValue = req["m_numericValue"]
+                req_list.append((9, f"{operator}" + " not"*applyNot + f" {target} has {numericValue} Rank"))
     
     if len(req_list) == 0:
         return ""
